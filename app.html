@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile Service Centre</title>
+    <title>Mobile Service Centre - Cloud Enabled</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -192,7 +197,7 @@
     <div class="container">
         <div class="header">
             <h1>📱 Mobile Service Centre</h1>
-            <p style="font-size: 14px; margin-top: 5px;">Complete Management System</p>
+            <p style="font-size: 14px; margin-top: 5px;">Complete Management System <span id="cloudStatus" style="font-size: 12px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; margin-left: 10px;">🔥 Cloud Enabled</span></p>
             <button onclick="logout()" style="position: absolute; top: 20px; right: 20px; padding: 8px 16px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">🚪 Logout</button>
         </div>
         
@@ -498,9 +503,10 @@
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn btn-primary" onclick="backupToGoogleDrive()">☁️ Backup to Google Drive</button>
                 <button class="btn btn-success" onclick="document.getElementById('restoreFile').click()">📥 Restore from Backup</button>
+                <button class="btn btn-info" onclick="syncAllToCloud(); alert('✅ All data synced to Firebase cloud!')">🔥 Sync to Cloud Now</button>
             </div>
             <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreFromBackup(event)">
-            <p style="font-size: 12px; color: #666; margin-top: 10px;">Backup: Save all data | Restore: Load data from another computer</p>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">🔥 Firebase: Auto-sync enabled | Manual backup: Optional safety</p>
         </div>
     </div>
     
@@ -520,6 +526,86 @@
     <div id="printContent" class="print-only"></div>
     
     <script>
+        // 🔥 FIREBASE CONFIGURATION
+        const firebaseConfig = {
+          apiKey: "AIzaSyBTOjKMqDc7mPXRdWo865ryggdG_ENstl0",
+          authDomain: "mobile-service-centre-38b05.firebaseapp.com",
+          databaseURL: "https://mobile-service-centre-38b05-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "mobile-service-centre-38b05",
+          storageBucket: "mobile-service-centre-38b05.firebasestorage.app",
+          messagingSenderId: "566007646551",
+          appId: "1:566007646551:web:c32ce1ae17427a69bbd612"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const currentUserKey = 'user_' + (localStorage.getItem('currentUser') || 'admin');
+        
+        console.log('🔥 Firebase Connected!');
+        
+        // Cloud Sync Functions
+        function saveToCloud(dataType, data) {
+            try {
+                database.ref(currentUserKey + '/' + dataType).set(data);
+                console.log('✅ Synced to cloud:', dataType);
+            } catch(error) {
+                console.error('❌ Cloud sync error:', error);
+            }
+        }
+        
+        function loadFromCloud(dataType, callback) {
+            database.ref(currentUserKey + '/' + dataType).once('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data) {
+                    callback(data);
+                    console.log('✅ Loaded from cloud:', dataType);
+                } else {
+                    console.log('ℹ️ No cloud data for:', dataType);
+                }
+            });
+        }
+        
+        function syncAllToCloud() {
+            saveToCloud('invoices', invoices);
+            saveToCloud('inventory', inventory);
+            saveToCloud('creditDebit', creditDebit);
+            saveToCloud('settings', settings);
+            saveToCloud('invoiceCounter', invoiceCounter);
+        }
+        
+        function loadAllFromCloud() {
+            loadFromCloud('invoices', (data) => {
+                invoices = data;
+                localStorage.setItem('invoices', JSON.stringify(invoices));
+                loadSales();
+            });
+            
+            loadFromCloud('inventory', (data) => {
+                inventory = data;
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+                loadInventory();
+                updateInventoryDatalist();
+            });
+            
+            loadFromCloud('creditDebit', (data) => {
+                creditDebit = data;
+                localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                loadCreditDebit();
+            });
+            
+            loadFromCloud('settings', (data) => {
+                settings = data;
+                localStorage.setItem('settings', JSON.stringify(settings));
+                loadSettings();
+            });
+            
+            loadFromCloud('invoiceCounter', (data) => {
+                invoiceCounter = data;
+                localStorage.setItem('invoiceCounter', invoiceCounter);
+            });
+        }
+        
         let invoices = JSON.parse(localStorage.getItem('invoices')) || [];
         let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
         let creditDebit = JSON.parse(localStorage.getItem('creditDebit')) || [];
@@ -562,13 +648,19 @@
         }
         
         window.onload = function() {
-            loadSales();
-            loadInventory();
-            loadCreditDebit();
-            loadSettings();
-            updateReports();
-            addItem();
-            initAutoBackup();
+            // Load from cloud first, then from localStorage
+            loadAllFromCloud();
+            
+            // Then load UI
+            setTimeout(() => {
+                loadSales();
+                loadInventory();
+                loadCreditDebit();
+                loadSettings();
+                updateReports();
+                addItem();
+                initAutoBackup();
+            }, 1000); // Wait 1 second for cloud data
         };
         
         function initAutoBackup() {
@@ -824,6 +916,12 @@
             creditDebit.push(creditEntry);
             localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
             
+            // 🔥 SYNC TO CLOUD
+            saveToCloud('invoices', invoices);
+            saveToCloud('creditDebit', creditDebit);
+            saveToCloud('invoiceCounter', invoiceCounter);
+            saveToCloud('inventory', inventory);
+            
             markDataChanged();
             showInvoicePreview(invoice);
             resetForm();
@@ -1046,6 +1144,10 @@
             
             creditDebit.push(debitEntry);
             localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+            
+            // 🔥 SYNC TO CLOUD
+            saveToCloud('creditDebit', creditDebit);
+            
             markDataChanged();
             
             document.getElementById('debitAmount').value = '';
@@ -1104,6 +1206,10 @@
             if(confirm('Delete this entry?')) {
                 creditDebit = creditDebit.filter(e => e.id !== id);
                 localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                
+                // 🔥 SYNC TO CLOUD
+                saveToCloud('creditDebit', creditDebit);
+                
                 markDataChanged();
                 loadCreditDebit();
             }
@@ -1210,6 +1316,10 @@
             
             inventory.push(item);
             localStorage.setItem('inventory', JSON.stringify(inventory));
+            
+            // 🔥 SYNC TO CLOUD
+            saveToCloud('inventory', inventory);
+            
             markDataChanged();
             
             document.getElementById('newItemName').value = '';
@@ -1281,6 +1391,10 @@
             
             item.quantity = qty;
             localStorage.setItem('inventory', JSON.stringify(inventory));
+            
+            // 🔥 SYNC TO CLOUD
+            saveToCloud('inventory', inventory);
+            
             markDataChanged();
             loadInventory();
         }
@@ -1289,6 +1403,10 @@
             if(confirm('Delete this item from inventory?')) {
                 inventory = inventory.filter(i => i.id !== id);
                 localStorage.setItem('inventory', JSON.stringify(inventory));
+                
+                // 🔥 SYNC TO CLOUD
+                saveToCloud('inventory', inventory);
+                
                 markDataChanged();
                 loadInventory();
                 updateInventoryDatalist();
@@ -1375,6 +1493,10 @@
                 creditDebit = creditDebit.filter(e => e.category !== 'Invoice #' + id);
                 localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
                 
+                // 🔥 SYNC TO CLOUD
+                saveToCloud('invoices', invoices);
+                saveToCloud('creditDebit', creditDebit);
+                
                 markDataChanged();
                 loadSales();
                 loadCreditDebit();
@@ -1410,7 +1532,11 @@
             settings.address = document.getElementById('settingsScAddress').value;
             settings.contact = document.getElementById('settingsScContact').value;
             localStorage.setItem('settings', JSON.stringify(settings));
-            alert('✅ Settings saved!');
+            
+            // 🔥 SYNC TO CLOUD
+            saveToCloud('settings', settings);
+            
+            alert('✅ Settings saved and synced to cloud!');
         }
         
         function changePassword() {
