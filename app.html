@@ -197,8 +197,11 @@
     <div class="container">
         <div class="header">
             <h1>📱 Mobile Service Centre</h1>
-            <p style="font-size: 14px; margin-top: 5px;">Complete Management System <span id="cloudStatus" style="font-size: 12px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; margin-left: 10px;">🔥 Cloud Enabled</span></p>
-            <button onclick="logout()" style="position: absolute; top: 20px; right: 20px; padding: 8px 16px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">🚪 Logout</button>
+            <p style="font-size: 14px; margin-top: 5px;">Complete Management System <span id="cloudStatus" style="font-size: 12px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; margin-left: 10px;">🔥 Real-time Sync</span></p>
+            <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 10px;">
+                <button onclick="location.reload()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 12px;">🔄 Refresh</button>
+                <button onclick="logout()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">🚪 Logout</button>
+            </div>
         </div>
         
         <div class="nav-tabs">
@@ -605,29 +608,46 @@
             // Load users first
             loadUsersFromCloud();
             
-            loadFromCloud('invoices', (data) => {
-                invoices = data;
-                localStorage.setItem('invoices', JSON.stringify(invoices));
-                loadSales();
+            // Set up real-time listeners for automatic sync
+            database.ref(currentUserKey + '/invoices').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data) {
+                    invoices = data;
+                    localStorage.setItem('invoices', JSON.stringify(invoices));
+                    loadSales();
+                    console.log('🔄 Invoices auto-synced from cloud');
+                }
             });
             
-            loadFromCloud('inventory', (data) => {
-                inventory = data;
-                localStorage.setItem('inventory', JSON.stringify(inventory));
-                loadInventory();
-                updateInventoryDatalist();
+            database.ref(currentUserKey + '/inventory').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data) {
+                    inventory = data;
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+                    loadInventory();
+                    updateInventoryDatalist();
+                    console.log('🔄 Inventory auto-synced from cloud');
+                }
             });
             
-            loadFromCloud('creditDebit', (data) => {
-                creditDebit = data;
-                localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
-                loadCreditDebit();
+            database.ref(currentUserKey + '/creditDebit').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data) {
+                    creditDebit = data;
+                    localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                    loadCreditDebit();
+                    console.log('🔄 Credit/Debit auto-synced from cloud');
+                }
             });
             
-            loadFromCloud('settings', (data) => {
-                settings = data;
-                localStorage.setItem('settings', JSON.stringify(settings));
-                loadSettings();
+            database.ref(currentUserKey + '/settings').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data) {
+                    settings = data;
+                    localStorage.setItem('settings', JSON.stringify(settings));
+                    loadSettings();
+                    console.log('🔄 Settings auto-synced from cloud');
+                }
             });
             
             loadFromCloud('invoiceCounter', (data) => {
@@ -1237,11 +1257,20 @@
                 creditDebit = creditDebit.filter(e => e.id !== id);
                 localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
                 
-                // 🔥 SYNC TO CLOUD
+                // 🔥 SYNC DELETION TO CLOUD
                 saveToCloud('creditDebit', creditDebit);
                 
                 markDataChanged();
                 loadCreditDebit();
+                
+                // Force reload after delete
+                setTimeout(() => {
+                    loadFromCloud('creditDebit', (data) => {
+                        creditDebit = data;
+                        localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                        loadCreditDebit();
+                    });
+                }, 500);
             }
         }
         
@@ -1434,12 +1463,23 @@
                 inventory = inventory.filter(i => i.id !== id);
                 localStorage.setItem('inventory', JSON.stringify(inventory));
                 
-                // 🔥 SYNC TO CLOUD
-                saveToCloud('inventory', inventory);
+                // 🔥 SYNC DELETION TO CLOUD (CRITICAL)
+                database.ref(currentUserKey + '/inventory').set(inventory)
+                    .then(() => {
+                        console.log('✅ Inventory deletion synced to cloud');
+                    })
+                    .catch((error) => {
+                        console.error('❌ Delete sync error:', error);
+                    });
                 
                 markDataChanged();
                 loadInventory();
                 updateInventoryDatalist();
+                
+                // Force cloud sync confirmation
+                setTimeout(() => {
+                    syncAllToCloud();
+                }, 1000);
             }
         }
         
