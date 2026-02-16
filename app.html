@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Service Centre</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            overflow-x: auto;
+        }
+        .nav-tab {
+            flex: 1;
+            min-width: 90px;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+        }
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        .tab-content { display: none; padding: 20px; }
+        .tab-content.active { display: block; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-warning { background: #ffc107; color: #000; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+        }
+        .invoice-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .invoice-form .full-width { grid-column: 1 / -1; }
+        .invoice-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .total-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .stat-card .value { font-size: 26px; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 13px;
+        }
+        table td { padding: 10px; border-bottom: 1px solid #dee2e6; font-size: 13px; }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background: white;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            background: #667eea;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .close { color: white; font-size: 30px; cursor: pointer; }
+        .modal-body { padding: 25px; }
+        
+        .print-only { display: none; }
+        
+        .low-stock { background: #fff3cd; }
+        .out-of-stock { background: #f8d7da; }
+        .credit-row { background: #d4edda; }
+        .debit-row { background: #f8d7da; }
+        
+        .search-box {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        @media print {
+            body { margin: 0; padding: 0; background: white; }
+            .container, .header, .nav-tabs, .modal, .modal-header, .modal-content { 
+                display: none !important; 
+            }
+            .btn, .close { display: none !important; }
+            .print-only { 
+                display: block !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .invoice-form, .invoice-item, .stats-grid { grid-template-columns: 1fr; }
+            .nav-tab { min-width: 70px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Mobile Service Centre</h1>
+            <p style="font-size: 14px; margin-top: 5px;">Complete Management System</p>
+            <button onclick="logout()" style="position: absolute; top: 20px; right: 20px; padding: 8px 16px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">🚪 Logout</button>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('invoice')">🧾 Invoice</button>
+            <button class="nav-tab" onclick="switchTab('sales')">💰 Sales</button>
+            <button class="nav-tab" onclick="switchTab('creditdebit')">💳 Credit/Debit</button>
+            <button class="nav-tab" onclick="switchTab('inventory')">📦 Inventory</button>
+            <button class="nav-tab" onclick="switchTab('reports')">📊 Reports</button>
+        </div>
+        
+        <div id="invoice" class="tab-content active">
+            <h2 style="margin-bottom: 15px;">New Invoice</h2>
+            <form id="invoiceForm" class="invoice-form">
+                <div class="form-group">
+                    <label>Customer Name *</label>
+                    <input type="text" id="customerName" required>
+                </div>
+                <div class="form-group">
+                    <label>Mobile *</label>
+                    <input type="tel" id="customerMobile" required>
+                </div>
+                <div class="form-group">
+                    <label>Device Model</label>
+                    <input type="text" id="deviceModel">
+                </div>
+                <div class="form-group">
+                    <label>IMEI</label>
+                    <input type="text" id="imeiNumber">
+                </div>
+                <div class="form-group full-width">
+                    <label>Problem</label>
+                    <textarea id="problemDesc" rows="2"></textarea>
+                </div>
+            </form>
+            
+            <h3 style="margin: 15px 0 10px 0;">Items (Price including GST)</h3>
+            <div id="itemsList"></div>
+            <button class="btn btn-info" onclick="addItem()">+ Add Item</button>
+            
+            <div class="form-group" style="margin-top: 15px; max-width: 300px;">
+                <label>Labour Charges (with GST)</label>
+                <input type="number" id="labourCharges" value="0" min="0" step="0.01" onchange="calcTotal()">
+            </div>
+            
+            <div class="total-section">
+                <div class="total-row"><span>Subtotal:</span><span id="subtotal">₹0</span></div>
+                <div class="total-row"><span>GST (18%):</span><span id="gstAmt">₹0</span></div>
+                <div class="total-row" style="font-weight: 700; font-size: 18px; border-top: 2px solid #667eea; padding-top: 10px;">
+                    <span>TOTAL:</span><span id="grandTotal">₹0</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <div class="form-group" style="flex: 1; margin: 0;">
+                    <label>Payment</label>
+                    <select id="paymentMode">
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Card">Card</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1; margin: 0;">
+                    <label>Handled By</label>
+                    <input type="text" id="handledBy" placeholder="Employee name">
+                </div>
+            </div>
+            
+            <button class="btn btn-success" onclick="generateInvoice()">Generate Invoice</button>
+        </div>
+        
+        <div id="sales" class="tab-content">
+            <h2>Sales Tracking</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 style="font-size: 14px;">Today's Sales</h3>
+                    <div class="value" id="todaySales">₹0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <h3 style="font-size: 14px;">This Month</h3>
+                    <div class="value" id="monthSales">₹0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <h3 style="font-size: 14px;">Total Invoices</h3>
+                    <div class="value" id="totalInvoices">0</div>
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="exportSalesToExcel()">📊 Export Sales to Excel</button>
+            <table><thead><tr><th>Invoice#</th><th>Date</th><th>Customer</th><th>Amount</th><th>Payment</th><th>Actions</th></tr></thead>
+            <tbody id="salesTableBody"></tbody></table>
+        </div>
+        
+        <div id="creditdebit" class="tab-content">
+            <h2>Credit / Debit Tracking</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <h3 style="font-size: 14px;">Today Credit (Income)</h3>
+                    <div class="value" id="todayCredit">₹0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                    <h3 style="font-size: 14px;">Today Debit (Expense)</h3>
+                    <div class="value" id="todayDebit">₹0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <h3 style="font-size: 14px;">Today Profit/Loss</h3>
+                    <div class="value" id="todayProfit">₹0</div>
+                </div>
+            </div>
+            
+            <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #dc3545;">
+                <h3 style="color: #721c24; margin-bottom: 10px;">➖ Add Debit (Expense)</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Debit Category</label>
+                        <select id="debitCategory">
+                            <option>Rent</option>
+                            <option>Electricity</option>
+                            <option>Parts Purchase</option>
+                            <option>Salary</option>
+                            <option>Stationery</option>
+                            <option>Cash Handover</option>
+                            <option>Daily BC</option>
+                            <option>Others</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Amount (₹)</label>
+                        <input type="number" id="debitAmount" min="0" step="0.01">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Description</label>
+                        <input type="text" id="debitDescription" placeholder="Details">
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="addDebit()">Add Debit Entry</button>
+            </div>
+            
+            <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #28a745;">
+                <h3 style="color: #155724; margin-bottom: 5px;">✅ Credit (Income) - Auto Added from Invoices</h3>
+                <p style="font-size: 13px; color: #155724; margin: 0;">Invoice amounts are automatically added as credit entries</p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="btn btn-success" onclick="exportCreditDebitToExcel()">📊 Export to Excel</button>
+                <input type="date" id="filterDate" onchange="filterCreditDebit()" style="padding: 10px; border: 2px solid #667eea; border-radius: 6px;">
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Credit</th>
+                        <th>Debit</th>
+                        <th>Balance</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="creditDebitTableBody"></tbody>
+            </table>
+        </div>
+        
+        <div id="inventory" class="tab-content">
+            <h2>Inventory Management</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 style="font-size: 14px;">Total QTY</h3>
+                    <div class="value" id="totalQty">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                    <h3 style="font-size: 14px;">Low Stock Items</h3>
+                    <div class="value" id="lowStockItems">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);">
+                    <h3 style="font-size: 14px;">Out of Stock</h3>
+                    <div class="value" id="outOfStockItems">0</div>
+                </div>
+            </div>
+            
+            <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h3 style="color: #007bff; margin-bottom: 10px;">Add New Item</h3>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Item Name</label>
+                        <input type="text" id="newItemName" placeholder="e.g., Display Assembly">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Quantity</label>
+                        <input type="number" id="newItemQty" min="0" value="0">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Price (₹)</label>
+                        <input type="number" id="newItemPrice" min="0" step="0.01" value="0">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Min Stock Alert</label>
+                        <input type="number" id="newItemMinStock" min="0" value="5">
+                    </div>
+                    <button class="btn btn-success" onclick="addInventoryItem()" style="margin: 0;">Add Item</button>
+                </div>
+            </div>
+            
+            <input type="text" class="search-box" id="inventorySearch" placeholder="🔍 Search inventory..." onkeyup="searchInventory()">
+            
+            <button class="btn btn-success" onclick="exportInventoryToExcel()" style="margin-bottom: 15px;">📊 Export Inventory to Excel</button>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Min Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+            </table>
+        </div>
+        
+        <div id="reports" class="tab-content">
+            <h2>Reports & Settings</h2>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                <h3 style="color: #856404; margin-bottom: 10px;">🔄 Auto Backup Settings</h3>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #000;">
+                        <input type="checkbox" id="autoBackupEnabled" onchange="toggleAutoBackup()" style="width: auto;">
+                        <span><strong>Enable Auto Backup</strong> (Recommended)</span>
+                    </label>
+                </div>
+                <p style="font-size: 12px; color: #856404; margin: 5px 0;">✓ Automatic backup every day at 6 PM</p>
+                <p style="font-size: 12px; color: #856404; margin: 5px 0;">✓ Includes: Invoices, Inventory, Credit/Debit, All Data</p>
+                <p style="font-size: 12px; color: #856404; margin: 5px 0;">✓ Never lose your data</p>
+                <div style="margin-top: 10px;">
+                    <p style="font-size: 11px; color: #666;">Last auto-backup: <strong id="lastBackupTime">Never</strong></p>
+                </div>
+            </div>
+            
+            <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="color: #007bff; margin-bottom: 10px;">⚙️ Service Center Settings</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Name</label>
+                        <input type="text" id="settingsScName" value="SMART CARE MOBILES">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>GST Number</label>
+                        <input type="text" id="settingsScGST" value="APAVM5475G1ZF">
+                    </div>
+                    <div class="form-group" style="margin: 0; grid-column: 1/-1;">
+                        <label>Address</label>
+                        <textarea id="settingsScAddress" rows="2">Shop NO6 New NWMC complex railway station raod nanded</textarea>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Contact</label>
+                        <input type="text" id="settingsScContact" value="02462328218">
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="saveSettings()">Save Settings</button>
+            </div>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                <h3 style="color: #856404; margin-bottom: 10px;">🔐 Change Password</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Current Password</label>
+                        <input type="password" id="currentPassword" placeholder="Enter current password">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>New Password</label>
+                        <input type="password" id="newPassword" placeholder="Enter new password">
+                    </div>
+                    <div class="form-group" style="margin: 0; grid-column: 1/-1;">
+                        <label>Confirm New Password</label>
+                        <input type="password" id="confirmPassword" placeholder="Re-enter new password">
+                    </div>
+                </div>
+                <button class="btn btn-warning" onclick="changePassword()">Change Password</button>
+                <p style="font-size: 11px; color: #856404; margin-top: 10px;">⚠️ Choose a strong password and remember it!</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 style="font-size: 14px;">Total Revenue</h3>
+                    <div class="value" id="totalRevenue">₹0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);">
+                    <h3 style="font-size: 14px;">Total Expenses</h3>
+                    <div class="value" id="totalExpenses">₹0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);">
+                    <h3 style="font-size: 14px;">Net Profit</h3>
+                    <div class="value" id="netProfit">₹0</div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-primary" onclick="backupToGoogleDrive()">☁️ Backup to Google Drive</button>
+                <button class="btn btn-success" onclick="document.getElementById('restoreFile').click()">📥 Restore from Backup</button>
+            </div>
+            <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreFromBackup(event)">
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">Backup: Save all data | Restore: Load data from another computer</p>
+        </div>
+    </div>
+    
+    <div id="invoiceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Invoice Preview</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="invoicePreview"></div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="printInvoice()">🖨️ Print Invoice</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="printContent" class="print-only"></div>
+    
+    <script>
+        let invoices = JSON.parse(localStorage.getItem('invoices')) || [];
+        let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
+        let creditDebit = JSON.parse(localStorage.getItem('creditDebit')) || [];
+        let invoiceCounter = parseInt(localStorage.getItem('invoiceCounter')) || 1;
+        let settings = JSON.parse(localStorage.getItem('settings')) || {
+            name: 'SMART CARE MOBILES',
+            gst: 'APAVM5475G1ZF',
+            address: 'Shop NO6 New NWMC complex railway station raod nanded',
+            contact: '02462328218'
+        };
+        
+        let currentInvoiceForPrint = null;
+        let autoBackupEnabled = localStorage.getItem('autoBackupEnabled') === 'true';
+        let lastBackupDate = localStorage.getItem('lastBackupDate');
+        let dataChanged = false;
+        
+        // Session check
+        if(localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'index.html';
+        }
+        
+        // Auto-logout after 8 hours
+        const loginTime = localStorage.getItem('loginTime');
+        if(loginTime) {
+            const elapsed = Date.now() - new Date(loginTime).getTime();
+            const hours = elapsed / (1000 * 60 * 60);
+            if(hours > 8) {
+                logout();
+            }
+        }
+        
+        function logout() {
+            if(confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('loginTime');
+                window.location.href = 'index.html';
+            }
+        }
+        
+        window.onload = function() {
+            loadSales();
+            loadInventory();
+            loadCreditDebit();
+            loadSettings();
+            updateReports();
+            addItem();
+            initAutoBackup();
+        };
+        
+        function initAutoBackup() {
+            document.getElementById('autoBackupEnabled').checked = autoBackupEnabled;
+            updateLastBackupDisplay();
+            
+            if(autoBackupEnabled) {
+                checkDailyBackup();
+                setInterval(checkDailyBackup, 60 * 60 * 1000);
+            }
+            
+            window.addEventListener('beforeunload', function(e) {
+                if(dataChanged && autoBackupEnabled) {
+                    const today = new Date().toDateString();
+                    const lastBackup = lastBackupDate ? new Date(lastBackupDate).toDateString() : null;
+                    
+                    if(lastBackup !== today) {
+                        e.preventDefault();
+                        e.returnValue = '⚠️ You have unsaved changes! Please take a backup.';
+                        return e.returnValue;
+                    }
+                }
+            });
+        }
+        
+        function toggleAutoBackup() {
+            autoBackupEnabled = document.getElementById('autoBackupEnabled').checked;
+            localStorage.setItem('autoBackupEnabled', autoBackupEnabled);
+            
+            if(autoBackupEnabled) {
+                alert('✅ Auto Backup Enabled!\n\nAutomatic backup at 6 PM daily\nIncludes: Invoices, Inventory, Credit/Debit');
+                checkDailyBackup();
+            }
+        }
+        
+        function checkDailyBackup() {
+            if(!autoBackupEnabled) return;
+            
+            const now = new Date();
+            const hour = now.getHours();
+            const today = now.toDateString();
+            const lastBackup = lastBackupDate ? new Date(lastBackupDate).toDateString() : null;
+            
+            if(hour === 18 && lastBackup !== today) {
+                performAutoBackup();
+            }
+            
+            if(hour === 20 && lastBackup !== today && dataChanged) {
+                if(confirm('⚠️ BACKUP REMINDER\n\nTake backup now?')) {
+                    backupToGoogleDrive();
+                }
+            }
+        }
+        
+        function performAutoBackup() {
+            const data = {
+                invoices,
+                inventory,
+                creditDebit,
+                settings,
+                invoiceCounter,
+                backupDate: new Date().toISOString()
+            };
+            const jsonData = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'AUTO_BACKUP_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            lastBackupDate = new Date().toISOString();
+            localStorage.setItem('lastBackupDate', lastBackupDate);
+            dataChanged = false;
+            updateLastBackupDisplay();
+            
+            alert('✅ AUTO BACKUP COMPLETED!\n\nUpload to Google Drive!');
+        }
+        
+        function updateLastBackupDisplay() {
+            const display = document.getElementById('lastBackupTime');
+            if(lastBackupDate) {
+                display.textContent = new Date(lastBackupDate).toLocaleString('en-IN');
+            } else {
+                display.textContent = 'Never';
+            }
+        }
+        
+        function markDataChanged() {
+            dataChanged = true;
+        }
+        
+        function numberToWords(num) {
+            const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+            
+            if(num === 0) return 'Zero';
+            
+            let words = '';
+            const crore = Math.floor(num / 10000000);
+            const lakh = Math.floor((num % 10000000) / 100000);
+            const thousand = Math.floor((num % 100000) / 1000);
+            const hundred = Math.floor((num % 1000) / 100);
+            const remainder = num % 100;
+            
+            if(crore) words += ones[crore] + ' Crore ';
+            if(lakh) words += (lakh > 19 ? tens[Math.floor(lakh/10)] + ' ' + ones[lakh%10] : lakh > 9 ? teens[lakh-10] : ones[lakh]) + ' Lakh ';
+            if(thousand) words += (thousand > 19 ? tens[Math.floor(thousand/10)] + ' ' + ones[thousand%10] : thousand > 9 ? teens[thousand-10] : ones[thousand]) + ' Thousand ';
+            if(hundred) words += ones[hundred] + ' Hundred ';
+            if(remainder) {
+                if(remainder > 19) words += tens[Math.floor(remainder/10)] + ' ' + ones[remainder%10];
+                else if(remainder > 9) words += teens[remainder-10];
+                else words += ones[remainder];
+            }
+            
+            return words.trim() + ' Rupees';
+        }
+        
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            if(tabName === 'sales') loadSales();
+            if(tabName === 'creditdebit') loadCreditDebit();
+            if(tabName === 'inventory') loadInventory();
+            if(tabName === 'reports') { loadSettings(); updateReports(); }
+        }
+        
+        function addItem() {
+            const div = document.createElement('div');
+            div.className = 'invoice-item';
+            div.innerHTML = `
+                <input type="text" placeholder="Item name" class="item-name" list="inventoryItems">
+                <input type="number" placeholder="Qty" class="item-qty" value="1" min="1" onchange="calcTotal()">
+                <input type="number" placeholder="Price (with GST)" class="item-price" min="0" step="0.01" onchange="calcTotal()">
+                <input type="number" placeholder="GST%" class="item-gst" value="18" onchange="calcTotal()">
+                <button class="btn btn-danger" onclick="this.parentElement.remove();calcTotal()" style="padding: 8px 12px;">×</button>
+            `;
+            document.getElementById('itemsList').appendChild(div);
+            
+            if(!document.getElementById('inventoryItems')) {
+                const datalist = document.createElement('datalist');
+                datalist.id = 'inventoryItems';
+                document.body.appendChild(datalist);
+            }
+            updateInventoryDatalist();
+        }
+        
+        function updateInventoryDatalist() {
+            const datalist = document.getElementById('inventoryItems');
+            if(datalist) {
+                datalist.innerHTML = '';
+                inventory.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.name;
+                    datalist.appendChild(option);
+                });
+            }
+        }
+        
+        function calcTotal() {
+            let itemsSubtotal = 0, itemsGST = 0;
+            document.querySelectorAll('.invoice-item').forEach(item => {
+                const qty = parseFloat(item.querySelector('.item-qty').value) || 0;
+                const priceWithGST = parseFloat(item.querySelector('.item-price').value) || 0;
+                const gstRate = parseFloat(item.querySelector('.item-gst').value) || 0;
+                const totalWithGST = qty * priceWithGST;
+                const basePrice = totalWithGST / (1 + (gstRate / 100));
+                itemsSubtotal += basePrice;
+                itemsGST += totalWithGST - basePrice;
+            });
+            const labourWithGST = parseFloat(document.getElementById('labourCharges').value) || 0;
+            const labourBase = labourWithGST / 1.18;
+            const labourGST = labourWithGST - labourBase;
+            const subtotal = itemsSubtotal + labourBase;
+            const totalGST = itemsGST + labourGST;
+            const grandTotal = subtotal + totalGST;
+            document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
+            document.getElementById('gstAmt').textContent = '₹' + totalGST.toFixed(2);
+            document.getElementById('grandTotal').textContent = '₹' + grandTotal.toFixed(2);
+        }
+        
+        function generateInvoice() {
+            const customerName = document.getElementById('customerName').value;
+            const customerMobile = document.getElementById('customerMobile').value;
+            if(!customerName || !customerMobile) { alert('Enter customer name and mobile!'); return; }
+            
+            const items = [];
+            document.querySelectorAll('.invoice-item').forEach(item => {
+                const name = item.querySelector('.item-name').value;
+                const qty = parseFloat(item.querySelector('.item-qty').value) || 0;
+                const priceWithGST = parseFloat(item.querySelector('.item-price').value) || 0;
+                const gstRate = parseFloat(item.querySelector('.item-gst').value) || 0;
+                if(name && qty > 0 && priceWithGST > 0) {
+                    const totalWithGST = qty * priceWithGST;
+                    const basePrice = totalWithGST / (1 + (gstRate / 100));
+                    items.push({ name, qty, basePrice, gstRate, total: totalWithGST });
+                    
+                    const invItem = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+                    if(invItem && invItem.quantity >= qty) {
+                        invItem.quantity -= qty;
+                        localStorage.setItem('inventory', JSON.stringify(inventory));
+                    }
+                }
+            });
+            
+            const labourWithGST = parseFloat(document.getElementById('labourCharges').value) || 0;
+            const labourBase = labourWithGST / 1.18;
+            const labourGST = labourWithGST - labourBase;
+            const itemsSubtotal = items.reduce((sum, item) => sum + item.basePrice, 0);
+            const itemsGST = items.reduce((sum, item) => sum + (item.total - item.basePrice), 0);
+            const subtotal = itemsSubtotal + labourBase;
+            const totalGST = itemsGST + labourGST;
+            const grandTotal = subtotal + totalGST;
+            
+            const invoice = {
+                id: invoiceCounter++,
+                date: new Date().toISOString(),
+                customerName,
+                customerMobile,
+                deviceModel: document.getElementById('deviceModel').value,
+                imeiNumber: document.getElementById('imeiNumber').value,
+                problemDesc: document.getElementById('problemDesc').value,
+                items,
+                labourBase,
+                labourGST,
+                labourWithGST,
+                subtotal,
+                totalGST,
+                total: grandTotal,
+                paymentMode: document.getElementById('paymentMode').value,
+                handledBy: document.getElementById('handledBy').value
+            };
+            
+            invoices.push(invoice);
+            localStorage.setItem('invoices', JSON.stringify(invoices));
+            localStorage.setItem('invoiceCounter', invoiceCounter);
+            
+            // Add to Credit/Debit as Credit (Income)
+            const creditEntry = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                type: 'Credit',
+                category: 'Invoice #' + invoice.id,
+                description: customerName + ' - ' + (invoice.deviceModel || 'Service'),
+                amount: grandTotal,
+                credit: grandTotal,
+                debit: 0
+            };
+            creditDebit.push(creditEntry);
+            localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+            
+            markDataChanged();
+            showInvoicePreview(invoice);
+            resetForm();
+            loadSales();
+            loadInventory();
+            loadCreditDebit();
+            updateReports();
+        }
+        
+        function showInvoicePreview(inv) {
+            currentInvoiceForPrint = inv;
+            let itemsHTML = '';
+            inv.items.forEach(item => {
+                const gstAmt = item.total - item.basePrice;
+                itemsHTML += `<tr>
+                    <td style="border:1px solid #dee2e6; padding:8px;">${item.name}</td>
+                    <td style="border:1px solid #dee2e6; padding:8px; text-align:center;">${item.qty}</td>
+                    <td style="border:1px solid #dee2e6; padding:8px; text-align:right;">₹${(item.basePrice/item.qty).toFixed(2)}</td>
+                    <td style="border:1px solid #dee2e6; padding:8px; text-align:center;">${item.gstRate}%</td>
+                    <td style="border:1px solid #dee2e6; padding:8px; text-align:right;">₹${gstAmt.toFixed(2)}</td>
+                    <td style="border:1px solid #dee2e6; padding:8px; text-align:right;"><strong>₹${item.total.toFixed(2)}</strong></td>
+                </tr>`;
+            });
+            if(inv.labourWithGST > 0) {
+                itemsHTML += `<tr style="background:#f8f9fa"><td colspan="6" style="border:1px solid #dee2e6; padding:8px;"><strong>Labour:</strong></td></tr>
+                <tr><td style="border:1px solid #dee2e6; padding:8px;">Labour Charges</td>
+                <td style="border:1px solid #dee2e6; padding:8px; text-align:center;">1</td>
+                <td style="border:1px solid #dee2e6; padding:8px; text-align:right;">₹${inv.labourBase.toFixed(2)}</td>
+                <td style="border:1px solid #dee2e6; padding:8px; text-align:center;">18%</td>
+                <td style="border:1px solid #dee2e6; padding:8px; text-align:right;">₹${inv.labourGST.toFixed(2)}</td>
+                <td style="border:1px solid #dee2e6; padding:8px; text-align:right;"><strong>₹${inv.labourWithGST.toFixed(2)}</strong></td></tr>`;
+            }
+            const html = `
+                <div style="border:3px solid #667eea; border-radius:8px; padding:20px; background:linear-gradient(to bottom, #f8f9fa 0%, white 100%);">
+                    <div style="text-align:center; border-bottom:3px double #667eea; padding-bottom:15px; margin-bottom:15px;">
+                        <h1 style="color:#667eea; font-size:24px; margin-bottom:5px; text-transform:uppercase;">AUTHORISED MOBILE SERVICE CENTRE</h1>
+                        <p style="font-size:16px; font-weight:700; color:#764ba2;">TAX INVOICE</p>
+                        <p style="font-size:13px; margin-top:8px;"><strong>Invoice #${inv.id}</strong> | ${new Date(inv.date).toLocaleString('en-IN')}</p>
+                    </div>
+                    <div style="background:#e7f3ff; padding:12px; border-radius:6px; margin-bottom:15px; border-left:4px solid #667eea;">
+                        <p style="font-weight:700; font-size:15px; color:#333;">${settings.name.toUpperCase()}</p>
+                        <p style="font-size:13px; margin:3px 0;">${settings.address}</p>
+                        <p style="font-size:13px; margin:3px 0;"><strong>GSTIN:</strong> ${settings.gst} | <strong>Ph:</strong> ${settings.contact}</p>
+                    </div>
+                    <div style="border:2px solid #dee2e6; padding:12px; border-radius:6px; margin-bottom:15px; background:white;">
+                        <p style="font-size:13px; margin:3px 0;"><strong>Customer:</strong> ${inv.customerName} | <strong>Mobile:</strong> ${inv.customerMobile}</p>
+                        ${inv.deviceModel ? `<p style="font-size:13px; margin:3px 0;"><strong>Device:</strong> ${inv.deviceModel}` : ''}${inv.imeiNumber ? ` | <strong>IMEI:</strong> ${inv.imeiNumber}</p>` : (inv.deviceModel ? '</p>' : '')}
+                        ${inv.problemDesc ? `<p style="font-size:13px; margin:3px 0;"><strong>Problem:</strong> ${inv.problemDesc}</p>` : ''}
+                        <p style="font-size:13px; margin:3px 0;"><strong>Payment:</strong> ${inv.paymentMode} | <strong>By:</strong> ${inv.handledBy || 'N/A'}</p>
+                    </div>
+                    <table style="font-size:12px; width:100%; border-collapse: collapse; margin:15px 0;">
+                        <thead>
+                            <tr style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white;">
+                                <th style="border:1px solid #667eea; padding:10px; text-align:left;">Item</th>
+                                <th style="border:1px solid #667eea; padding:10px; text-align:center;">Qty</th>
+                                <th style="border:1px solid #667eea; padding:10px; text-align:right;">Price</th>
+                                <th style="border:1px solid #667eea; padding:10px; text-align:center;">GST%</th>
+                                <th style="border:1px solid #667eea; padding:10px; text-align:right;">GST</th>
+                                <th style="border:1px solid #667eea; padding:10px; text-align:right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHTML}
+                        </tbody>
+                    </table>
+                    <div style="background:#f8f9fa; padding:15px; border-radius:6px; margin-top:15px; border:2px solid #dee2e6;">
+                        <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:14px;">
+                            <span>Subtotal (without GST):</span>
+                            <strong>₹${inv.subtotal.toFixed(2)}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:14px; color:#667eea;">
+                            <span>Total GST (18%):</span>
+                            <strong>₹${inv.totalGST.toFixed(2)}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; padding:12px 0; border-top:3px double #667eea; margin-top:8px; font-size:18px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:12px; border-radius:4px;">
+                            <span><strong>GRAND TOTAL:</strong></span>
+                            <strong>₹${inv.total.toFixed(2)}</strong>
+                        </div>
+                        <div style="background:white; padding:10px; border-radius:4px; margin-top:10px; border:2px dashed #667eea;">
+                            <p style="font-size:12px; margin-bottom:3px;"><strong>Amount in Words:</strong></p>
+                            <p style="color:#667eea; font-size:14px; font-weight:600;">${numberToWords(Math.floor(inv.total))}</p>
+                        </div>
+                    </div>
+                    <div style="background:#fff3cd; padding:12px; border-left:4px solid #ffc107; margin-top:15px; font-size:11px; border-radius:4px;">
+                        <strong style="color:#856404;">Terms & Conditions:</strong> Services on non-warranty products warranted for 30 days from handover date. Warranty not valid for liquid/physical damage or unauthorized repairs.
+                    </div>
+                    <div style="text-align:center; margin-top:15px; padding-top:15px; border-top:2px dashed #dee2e6;">
+                        <p style="font-size:14px; font-weight:600; color:#667eea;">Thank you for your business!</p>
+                        <p style="font-size:11px; color:#6c757d; margin-top:5px;">This is a computer generated invoice</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('invoicePreview').innerHTML = html;
+            document.getElementById('invoiceModal').style.display = 'block';
+        }
+        
+        function printInvoice() {
+            if(!currentInvoiceForPrint) return;
+            const inv = currentInvoiceForPrint;
+            
+            let itemsHTML = '';
+            inv.items.forEach(item => {
+                const gstAmt = item.total - item.basePrice;
+                itemsHTML += `<tr>
+                    <td style="border:2px solid #000; padding:6px; color:#000;">${item.name}</td>
+                    <td style="border:2px solid #000; padding:6px; text-align:center; color:#000;">${item.qty}</td>
+                    <td style="border:2px solid #000; padding:6px; text-align:right; color:#000;">₹${(item.basePrice/item.qty).toFixed(2)}</td>
+                    <td style="border:2px solid #000; padding:6px; text-align:center; color:#000;">${item.gstRate}%</td>
+                    <td style="border:2px solid #000; padding:6px; text-align:right; color:#000;">₹${gstAmt.toFixed(2)}</td>
+                    <td style="border:2px solid #000; padding:6px; text-align:right; color:#000; font-weight:700;">₹${item.total.toFixed(2)}</td>
+                </tr>`;
+            });
+            if(inv.labourWithGST > 0) {
+                itemsHTML += `<tr style="background:#f0f0f0"><td colspan="6" style="border:2px solid #000; padding:6px; color:#000; font-weight:700;">Labour:</td></tr>
+                <tr><td style="border:2px solid #000; padding:6px; color:#000;">Labour Charges</td>
+                <td style="border:2px solid #000; padding:6px; text-align:center; color:#000;">1</td>
+                <td style="border:2px solid #000; padding:6px; text-align:right; color:#000;">₹${inv.labourBase.toFixed(2)}</td>
+                <td style="border:2px solid #000; padding:6px; text-align:center; color:#000;">18%</td>
+                <td style="border:2px solid #000; padding:6px; text-align:right; color:#000;">₹${inv.labourGST.toFixed(2)}</td>
+                <td style="border:2px solid #000; padding:6px; text-align:right; color:#000; font-weight:700;">₹${inv.labourWithGST.toFixed(2)}</td></tr>`;
+            }
+            
+            document.getElementById('printContent').innerHTML = `
+                <div style="font-family: Arial, sans-serif; max-width: 900px; margin: 0; padding: 12px; color: #000;">
+                    <div style="border:3px solid #000; padding:12px;">
+                        <div style="text-align:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:10px;">
+                            <h1 style="font-size:20px; margin:5px 0; font-weight:900; color:#000;">AUTHORISED MOBILE SERVICE CENTRE</h1>
+                            <p style="font-size:14px; font-weight:700; margin:5px 0; color:#000;">TAX INVOICE</p>
+                            <p style="font-size:11px; margin:5px 0; font-weight:700; color:#000;">Invoice #${inv.id} | ${new Date(inv.date).toLocaleString('en-IN')}</p>
+                        </div>
+                        <div style="background:#f5f5f5; padding:8px; margin-bottom:10px; border:2px solid #000;">
+                            <p style="font-weight:700; font-size:13px; margin:2px 0; color:#000;">${settings.name.toUpperCase()}</p>
+                            <p style="font-size:11px; margin:2px 0; font-weight:600; color:#000;">${settings.address}</p>
+                            <p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">GSTIN: ${settings.gst} | Ph: ${settings.contact}</p>
+                        </div>
+                        <div style="border:2px solid #000; padding:8px; margin-bottom:10px;">
+                            <p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Customer: ${inv.customerName} | Mobile: ${inv.customerMobile}</p>
+                            ${inv.deviceModel ? `<p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Device: ${inv.deviceModel}` : ''}${inv.imeiNumber ? ` | IMEI: ${inv.imeiNumber}</p>` : (inv.deviceModel ? '</p>' : '')}
+                            ${inv.problemDesc ? `<p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Problem: ${inv.problemDesc}</p>` : ''}
+                            <p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Payment: ${inv.paymentMode} | By: ${inv.handledBy || 'N/A'}</p>
+                        </div>
+                        <table style="font-size:10px; width:100%; border-collapse: collapse; margin:10px 0;">
+                            <thead>
+                                <tr style="background:#667eea;">
+                                    <th style="border:2px solid #000; padding:6px; text-align:left; color:#000;">Item</th>
+                                    <th style="border:2px solid #000; padding:6px; text-align:center; color:#000;">Qty</th>
+                                    <th style="border:2px solid #000; padding:6px; text-align:right; color:#000;">Price</th>
+                                    <th style="border:2px solid #000; padding:6px; text-align:center; color:#000;">GST%</th>
+                                    <th style="border:2px solid #000; padding:6px; text-align:right; color:#000;">GST</th>
+                                    <th style="border:2px solid #000; padding:6px; text-align:right; color:#000;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsHTML}
+                            </tbody>
+                        </table>
+                        <div style="background:#f5f5f5; padding:10px; margin-top:10px; border:2px solid #000;">
+                            <div style="display:flex; justify-content:space-between; padding:3px 0; font-size:12px; color:#000; font-weight:700;">
+                                <span>Subtotal (without GST):</span>
+                                <strong>₹${inv.subtotal.toFixed(2)}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:3px 0; font-size:12px; color:#000; font-weight:700;">
+                                <span>Total GST (18%):</span>
+                                <strong>₹${inv.totalGST.toFixed(2)}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:10px; border:3px solid #000; margin-top:5px; font-size:16px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <span style="color:#000;">GRAND TOTAL:</span>
+                                <strong style="color:#000;">₹${inv.total.toFixed(2)}</strong>
+                            </div>
+                        </div>
+                        <div style="background:white; padding:8px; margin-top:8px; border:2px solid #000;">
+                            <p style="font-size:10px; margin-bottom:2px; font-weight:700; color:#000;">Amount in Words:</p>
+                            <p style="font-size:12px; font-weight:700; color:#000;">${numberToWords(Math.floor(inv.total))}</p>
+                        </div>
+                        <div style="background:#f5f5f5; padding:8px; margin-top:10px; font-size:9px; border:2px solid #000; line-height:1.4;">
+                            <strong style="font-weight:700; color:#000;">Terms & Conditions:</strong> <span style="color:#000; font-weight:600;">Services carried out by Authorised Service Center on non-warranty products are warranted for 30 days from the date of handing over the product after successful services. However, this warranty is not valid for liquid/physical damage and tempering of Product/unauthorized repairs, which will render the Product excluded from benefits of MLW.</span>
+                        </div>
+                        <div style="text-align:center; margin-top:10px; padding-top:8px; border-top:2px solid #000;">
+                            <p style="font-size:11px; font-weight:700; color:#000;">Thank you for your business!</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            window.print();
+        }
+        
+        function closeModal() {
+            document.getElementById('invoiceModal').style.display = 'none';
+        }
+        
+        function resetForm() {
+            document.getElementById('invoiceForm').reset();
+            document.getElementById('labourCharges').value = 0;
+            document.getElementById('itemsList').innerHTML = '';
+            addItem();
+            calcTotal();
+        }
+        
+        // CREDIT/DEBIT FUNCTIONS
+        function addDebit() {
+            const category = document.getElementById('debitCategory').value;
+            const amount = parseFloat(document.getElementById('debitAmount').value);
+            const description = document.getElementById('debitDescription').value;
+            
+            if(!amount || amount <= 0) {
+                alert('Please enter valid amount!');
+                return;
+            }
+            
+            const debitEntry = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                type: 'Debit',
+                category,
+                description: description || category,
+                amount,
+                credit: 0,
+                debit: amount
+            };
+            
+            creditDebit.push(debitEntry);
+            localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+            markDataChanged();
+            
+            document.getElementById('debitAmount').value = '';
+            document.getElementById('debitDescription').value = '';
+            
+            loadCreditDebit();
+        }
+        
+        function loadCreditDebit() {
+            const tbody = document.getElementById('creditDebitTableBody');
+            tbody.innerHTML = '';
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            let todayCredit = 0;
+            let todayDebit = 0;
+            let runningBalance = 0;
+            
+            // Sort by date
+            const sortedEntries = [...creditDebit].sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            sortedEntries.forEach(entry => {
+                const entryDate = new Date(entry.date);
+                entryDate.setHours(0,0,0,0);
+                
+                if(entryDate.getTime() === today.getTime()) {
+                    todayCredit += entry.credit;
+                    todayDebit += entry.debit;
+                }
+                
+                runningBalance += entry.credit - entry.debit;
+                
+                const row = tbody.insertRow();
+                row.className = entry.type === 'Credit' ? 'credit-row' : 'debit-row';
+                row.innerHTML = `
+                    <td>${new Date(entry.date).toLocaleDateString('en-IN')}</td>
+                    <td><strong>${entry.type}</strong></td>
+                    <td>${entry.category}</td>
+                    <td>${entry.description}</td>
+                    <td style="color: #28a745; font-weight: 600;">${entry.credit > 0 ? '₹' + entry.credit.toFixed(2) : '-'}</td>
+                    <td style="color: #dc3545; font-weight: 600;">${entry.debit > 0 ? '₹' + entry.debit.toFixed(2) : '-'}</td>
+                    <td><strong>₹${runningBalance.toFixed(2)}</strong></td>
+                    <td>
+                        ${entry.type === 'Debit' ? `<button class="btn btn-danger" style="padding:5px 10px;" onclick="deleteCreditDebit(${entry.id})">Delete</button>` : '-'}
+                    </td>
+                `;
+            });
+            
+            document.getElementById('todayCredit').textContent = '₹' + todayCredit.toFixed(2);
+            document.getElementById('todayDebit').textContent = '₹' + todayDebit.toFixed(2);
+            document.getElementById('todayProfit').textContent = '₹' + (todayCredit - todayDebit).toFixed(2);
+        }
+        
+        function deleteCreditDebit(id) {
+            if(confirm('Delete this entry?')) {
+                creditDebit = creditDebit.filter(e => e.id !== id);
+                localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                markDataChanged();
+                loadCreditDebit();
+            }
+        }
+        
+        function filterCreditDebit() {
+            const filterDate = document.getElementById('filterDate').value;
+            if(!filterDate) {
+                loadCreditDebit();
+                return;
+            }
+            
+            const selectedDate = new Date(filterDate);
+            selectedDate.setHours(0,0,0,0);
+            
+            const tbody = document.getElementById('creditDebitTableBody');
+            tbody.innerHTML = '';
+            
+            let dayCredit = 0;
+            let dayDebit = 0;
+            let runningBalance = 0;
+            
+            const sortedEntries = [...creditDebit].sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            sortedEntries.forEach(entry => {
+                const entryDate = new Date(entry.date);
+                entryDate.setHours(0,0,0,0);
+                
+                if(entryDate.getTime() === selectedDate.getTime()) {
+                    dayCredit += entry.credit;
+                    dayDebit += entry.debit;
+                    runningBalance += entry.credit - entry.debit;
+                    
+                    const row = tbody.insertRow();
+                    row.className = entry.type === 'Credit' ? 'credit-row' : 'debit-row';
+                    row.innerHTML = `
+                        <td>${new Date(entry.date).toLocaleDateString('en-IN')}</td>
+                        <td><strong>${entry.type}</strong></td>
+                        <td>${entry.category}</td>
+                        <td>${entry.description}</td>
+                        <td style="color: #28a745; font-weight: 600;">${entry.credit > 0 ? '₹' + entry.credit.toFixed(2) : '-'}</td>
+                        <td style="color: #dc3545; font-weight: 600;">${entry.debit > 0 ? '₹' + entry.debit.toFixed(2) : '-'}</td>
+                        <td><strong>₹${runningBalance.toFixed(2)}</strong></td>
+                        <td>
+                            ${entry.type === 'Debit' ? `<button class="btn btn-danger" style="padding:5px 10px;" onclick="deleteCreditDebit(${entry.id})">Delete</button>` : '-'}
+                        </td>
+                    `;
+                }
+            });
+            
+            if(tbody.rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">No entries for selected date</td></tr>';
+            }
+        }
+        
+        function exportCreditDebitToExcel() {
+            let csv = 'Date,Type,Category,Description,Credit,Debit,Balance\n';
+            let runningBalance = 0;
+            
+            const sortedEntries = [...creditDebit].sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            sortedEntries.forEach(entry => {
+                runningBalance += entry.credit - entry.debit;
+                csv += `${new Date(entry.date).toLocaleDateString('en-IN')},${entry.type},${entry.category},"${entry.description}",`;
+                csv += `${entry.credit > 0 ? '₹' + entry.credit.toFixed(2) : '-'},`;
+                csv += `${entry.debit > 0 ? '₹' + entry.debit.toFixed(2) : '-'},`;
+                csv += `₹${runningBalance.toFixed(2)}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'credit_debit_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // INVENTORY FUNCTIONS
+        function addInventoryItem() {
+            const name = document.getElementById('newItemName').value.trim();
+            const quantity = parseInt(document.getElementById('newItemQty').value) || 0;
+            const price = parseFloat(document.getElementById('newItemPrice').value) || 0;
+            const minStock = parseInt(document.getElementById('newItemMinStock').value) || 5;
+            
+            if(!name) {
+                alert('Please enter item name!');
+                return;
+            }
+            
+            const existingItem = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+            if(existingItem) {
+                alert('Item already exists! Use edit to modify.');
+                return;
+            }
+            
+            const item = {
+                id: Date.now(),
+                name,
+                quantity,
+                price,
+                minStock
+            };
+            
+            inventory.push(item);
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            markDataChanged();
+            
+            document.getElementById('newItemName').value = '';
+            document.getElementById('newItemQty').value = '0';
+            document.getElementById('newItemPrice').value = '0';
+            document.getElementById('newItemMinStock').value = '5';
+            
+            loadInventory();
+            updateInventoryDatalist();
+        }
+        
+        function loadInventory() {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
+            
+            let totalQty = 0;
+            let lowStock = 0;
+            let outOfStock = 0;
+            
+            inventory.forEach(item => {
+                totalQty += item.quantity;
+                
+                if(item.quantity === 0) outOfStock++;
+                else if(item.quantity <= item.minStock) lowStock++;
+                
+                const row = tbody.insertRow();
+                let statusClass = '';
+                let statusText = 'In Stock';
+                
+                if(item.quantity === 0) {
+                    statusClass = 'out-of-stock';
+                    statusText = '❌ Out of Stock';
+                } else if(item.quantity <= item.minStock) {
+                    statusClass = 'low-stock';
+                    statusText = '⚠️ Low Stock';
+                }
+                
+                row.className = statusClass;
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.price.toFixed(2)}</td>
+                    <td>${item.minStock}</td>
+                    <td>${statusText}</td>
+                    <td>
+                        <button class="btn btn-info" style="padding:5px 10px;" onclick="editInventoryItem(${item.id})">Edit</button>
+                        <button class="btn btn-danger" style="padding:5px 10px;" onclick="deleteInventoryItem(${item.id})">Delete</button>
+                    </td>
+                `;
+            });
+            
+            document.getElementById('totalQty').textContent = totalQty;
+            document.getElementById('lowStockItems').textContent = lowStock;
+            document.getElementById('outOfStockItems').textContent = outOfStock;
+        }
+        
+        function editInventoryItem(id) {
+            const item = inventory.find(i => i.id === id);
+            if(!item) return;
+            
+            const newQty = prompt(`Update quantity for "${item.name}":\nCurrent: ${item.quantity}`, item.quantity);
+            if(newQty === null) return;
+            
+            const qty = parseInt(newQty);
+            if(isNaN(qty) || qty < 0) {
+                alert('Invalid quantity!');
+                return;
+            }
+            
+            item.quantity = qty;
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            markDataChanged();
+            loadInventory();
+        }
+        
+        function deleteInventoryItem(id) {
+            if(confirm('Delete this item from inventory?')) {
+                inventory = inventory.filter(i => i.id !== id);
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+                markDataChanged();
+                loadInventory();
+                updateInventoryDatalist();
+            }
+        }
+        
+        function searchInventory() {
+            const search = document.getElementById('inventorySearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#inventoryTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        }
+        
+        function exportInventoryToExcel() {
+            let csv = 'Item Name,Quantity,Price,Min Stock,Status\n';
+            
+            inventory.forEach(item => {
+                let status = 'In Stock';
+                if(item.quantity === 0) status = 'Out of Stock';
+                else if(item.quantity <= item.minStock) status = 'Low Stock';
+                
+                csv += `"${item.name}",${item.quantity},₹${item.price.toFixed(2)},${item.minStock},${status}\n`;
+            });
+            
+            // Add summary
+            const totalQty = inventory.reduce((sum, item) => sum + item.quantity, 0);
+            const lowStock = inventory.filter(item => item.quantity > 0 && item.quantity <= item.minStock).length;
+            const outOfStock = inventory.filter(item => item.quantity === 0).length;
+            
+            csv += '\n';
+            csv += 'SUMMARY\n';
+            csv += `Total Items,${inventory.length}\n`;
+            csv += `Total Quantity,${totalQty}\n`;
+            csv += `Low Stock Items,${lowStock}\n`;
+            csv += `Out of Stock Items,${outOfStock}\n`;
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'inventory_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function loadSales() {
+            const tbody = document.getElementById('salesTableBody');
+            tbody.innerHTML = '';
+            const today = new Date(); today.setHours(0,0,0,0);
+            const todaySales = invoices.filter(i => new Date(i.date) >= today).reduce((s, i) => s + i.total, 0);
+            const monthSales = invoices.filter(i => {
+                const d = new Date(i.date);
+                return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+            }).reduce((s, i) => s + i.total, 0);
+            document.getElementById('todaySales').textContent = '₹' + todaySales.toFixed(2);
+            document.getElementById('monthSales').textContent = '₹' + monthSales.toFixed(2);
+            document.getElementById('totalInvoices').textContent = invoices.length;
+            [...invoices].reverse().forEach(inv => {
+                const row = tbody.insertRow();
+                row.innerHTML = `<td>#${inv.id}</td><td>${new Date(inv.date).toLocaleDateString('en-IN')}</td>
+                <td>${inv.customerName}</td><td>₹${inv.total.toFixed(2)}</td><td>${inv.paymentMode}</td>
+                <td>
+                    <button class="btn btn-info" style="padding:5px 10px;" onclick='viewInvoice(${inv.id})'>View</button>
+                    <button class="btn btn-danger" style="padding:5px 10px;" onclick='deleteInvoice(${inv.id})'>Delete</button>
+                </td>`;
+            });
+        }
+        
+        function viewInvoice(id) {
+            const inv = invoices.find(i => i.id === id);
+            if(inv) showInvoicePreview(inv);
+        }
+        
+        function deleteInvoice(id) {
+            if(confirm('Delete this invoice? Cannot be undone!')) {
+                // Remove from invoices
+                invoices = invoices.filter(i => i.id !== id);
+                localStorage.setItem('invoices', JSON.stringify(invoices));
+                
+                // Remove from credit/debit
+                creditDebit = creditDebit.filter(e => e.category !== 'Invoice #' + id);
+                localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                
+                markDataChanged();
+                loadSales();
+                loadCreditDebit();
+                updateReports();
+                alert('✅ Invoice deleted!');
+            }
+        }
+        
+        function exportSalesToExcel() {
+            let csv = 'Invoice#,Date,Customer,Mobile,Device,Amount,Payment,Employee\n';
+            invoices.forEach(inv => {
+                csv += `${inv.id},${new Date(inv.date).toLocaleDateString('en-IN')},${inv.customerName},${inv.customerMobile},${inv.deviceModel || ''},₹${inv.total.toFixed(2)},${inv.paymentMode},${inv.handledBy || ''}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sales_data_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function loadSettings() {
+            document.getElementById('settingsScName').value = settings.name;
+            document.getElementById('settingsScGST').value = settings.gst;
+            document.getElementById('settingsScAddress').value = settings.address;
+            document.getElementById('settingsScContact').value = settings.contact;
+        }
+        
+        function saveSettings() {
+            settings.name = document.getElementById('settingsScName').value;
+            settings.gst = document.getElementById('settingsScGST').value;
+            settings.address = document.getElementById('settingsScAddress').value;
+            settings.contact = document.getElementById('settingsScContact').value;
+            localStorage.setItem('settings', JSON.stringify(settings));
+            alert('✅ Settings saved!');
+        }
+        
+        function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if(!currentPassword || !newPassword || !confirmPassword) {
+                alert('❌ Please fill all password fields!');
+                return;
+            }
+            
+            if(newPassword.length < 6) {
+                alert('❌ New password must be at least 6 characters long!');
+                return;
+            }
+            
+            if(newPassword !== confirmPassword) {
+                alert('❌ New password and confirm password do not match!');
+                return;
+            }
+            
+            const currentUser = localStorage.getItem('currentUser') || 'admin';
+            const users = JSON.parse(localStorage.getItem('users')) || {
+                'admin': { password: 'admin123', role: 'admin' }
+            };
+            
+            if(!users[currentUser] || users[currentUser].password !== currentPassword) {
+                alert('❌ Current password is incorrect!');
+                document.getElementById('currentPassword').value = '';
+                return;
+            }
+            
+            users[currentUser].password = newPassword;
+            localStorage.setItem('users', JSON.stringify(users));
+            
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            
+            alert('✅ Password changed successfully!\n\nPlease remember your new password.');
+        }
+        
+        function updateReports() {
+            const totalRev = invoices.reduce((s, i) => s + i.total, 0);
+            const totalDebit = creditDebit.filter(e => e.type === 'Debit').reduce((s, e) => s + e.debit, 0);
+            const profit = totalRev - totalDebit;
+            document.getElementById('totalRevenue').textContent = '₹' + totalRev.toFixed(2);
+            document.getElementById('totalExpenses').textContent = '₹' + totalDebit.toFixed(2);
+            document.getElementById('netProfit').textContent = '₹' + profit.toFixed(2);
+        }
+        
+        function backupToGoogleDrive() {
+            const data = {
+                invoices,
+                inventory,
+                creditDebit,
+                settings,
+                invoiceCounter,
+                backupDate: new Date().toISOString()
+            };
+            const jsonData = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'service_centre_backup_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            lastBackupDate = new Date().toISOString();
+            localStorage.setItem('lastBackupDate', lastBackupDate);
+            dataChanged = false;
+            updateLastBackupDisplay();
+            
+            alert('✅ Complete backup downloaded!\n\nIncludes: Invoices, Inventory, Credit/Debit\nUpload to Google Drive!');
+        }
+        
+        function restoreFromBackup(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            if(!file.name.endsWith('.json')) {
+                alert('❌ Please select a valid JSON backup file!');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if(!data.invoices || !data.inventory || !data.creditDebit || !data.settings) {
+                        alert('❌ Invalid backup file format!');
+                        return;
+                    }
+                    
+                    const confirmMsg = `⚠️ RESTORE DATA?\n\n` +
+                        `This will replace all current data with:\n` +
+                        `• ${data.invoices.length} invoices\n` +
+                        `• ${data.inventory.length} inventory items\n` +
+                        `• ${data.creditDebit.length} credit/debit entries\n\n` +
+                        `Current data will be LOST!\n\n` +
+                        `Backup date: ${new Date(data.backupDate).toLocaleString('en-IN')}\n\n` +
+                        `Continue?`;
+                    
+                    if(!confirm(confirmMsg)) return;
+                    
+                    invoices = data.invoices || [];
+                    inventory = data.inventory || [];
+                    creditDebit = data.creditDebit || [];
+                    settings = data.settings || {};
+                    invoiceCounter = data.invoiceCounter || 1;
+                    
+                    localStorage.setItem('invoices', JSON.stringify(invoices));
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+                    localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                    localStorage.setItem('settings', JSON.stringify(settings));
+                    localStorage.setItem('invoiceCounter', invoiceCounter);
+                    
+                    loadSales();
+                    loadInventory();
+                    loadCreditDebit();
+                    loadSettings();
+                    updateReports();
+                    updateInventoryDatalist();
+                    
+                    alert('✅ Data restored successfully!\n\n' +
+                        `• ${invoices.length} invoices\n` +
+                        `• ${inventory.length} inventory items\n` +
+                        `• ${creditDebit.length} credit/debit entries`);
+                    
+                } catch(error) {
+                    alert('❌ Error reading backup file!\n\n' + error.message);
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('invoiceModal')) closeModal();
+        }
+    </script>
+</body>
+</html>
