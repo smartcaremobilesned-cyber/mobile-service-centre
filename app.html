@@ -566,15 +566,45 @@
             });
         }
         
+        function syncUsersToCloud() {
+            const users = JSON.parse(localStorage.getItem('users')) || {
+                'admin': { password: 'admin123', role: 'admin' }
+            };
+            database.ref('users').set(users);
+            console.log('✅ Users synced to cloud');
+        }
+        
+        function loadUsersFromCloud(callback) {
+            database.ref('users').once('value', (snapshot) => {
+                const users = snapshot.val();
+                if(users) {
+                    localStorage.setItem('users', JSON.stringify(users));
+                    console.log('✅ Users loaded from cloud');
+                    if(callback) callback(users);
+                } else {
+                    // Initialize default user in cloud
+                    const defaultUsers = {
+                        'admin': { password: 'admin123', role: 'admin' }
+                    };
+                    database.ref('users').set(defaultUsers);
+                    localStorage.setItem('users', JSON.stringify(defaultUsers));
+                }
+            });
+        }
+        
         function syncAllToCloud() {
             saveToCloud('invoices', invoices);
             saveToCloud('inventory', inventory);
             saveToCloud('creditDebit', creditDebit);
             saveToCloud('settings', settings);
             saveToCloud('invoiceCounter', invoiceCounter);
+            syncUsersToCloud();
         }
         
         function loadAllFromCloud() {
+            // Load users first
+            loadUsersFromCloud();
+            
             loadFromCloud('invoices', (data) => {
                 invoices = data;
                 localStorage.setItem('invoices', JSON.stringify(invoices));
@@ -1573,11 +1603,14 @@
             users[currentUser].password = newPassword;
             localStorage.setItem('users', JSON.stringify(users));
             
+            // 🔥 SYNC PASSWORD TO CLOUD
+            syncUsersToCloud();
+            
             document.getElementById('currentPassword').value = '';
             document.getElementById('newPassword').value = '';
             document.getElementById('confirmPassword').value = '';
             
-            alert('✅ Password changed successfully!\n\nPlease remember your new password.');
+            alert('✅ Password changed successfully and synced to cloud!\n\nAll devices will now use the new password.');
         }
         
         function updateReports() {
