@@ -207,6 +207,7 @@
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="switchTab('invoice')">🧾 Invoice</button>
             <button class="nav-tab" onclick="switchTab('sales')">💰 Sales</button>
+            <button class="nav-tab" onclick="switchTab('realme-moto')">📱 Realme/Moto</button>
             <button class="nav-tab" onclick="switchTab('creditdebit')">💳 Credit/Debit</button>
             <button class="nav-tab" onclick="switchTab('inventory')">📦 Inventory</button>
             <button class="nav-tab" onclick="switchTab('reports')">📊 Reports</button>
@@ -292,6 +293,108 @@
             <button class="btn btn-success" onclick="exportSalesToExcel()">📊 Export Sales to Excel</button>
             <table><thead><tr><th>Invoice#</th><th>Date</th><th>Customer</th><th>Amount</th><th>Payment</th><th>Actions</th></tr></thead>
             <tbody id="salesTableBody"></tbody></table>
+        </div>
+        
+        <div id="realme-moto" class="tab-content">
+            <h2>Realme / Moto Payment Tracking</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 style="font-size: 14px;">Total Cases</h3>
+                    <div class="value" id="totalCases">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);">
+                    <h3 style="font-size: 14px;">Open Cases</h3>
+                    <div class="value" id="openCases">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);">
+                    <h3 style="font-size: 14px;">Closed Cases</h3>
+                    <div class="value" id="closedCases">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                    <h3 style="font-size: 14px;">Pending Amount</h3>
+                    <div class="value" id="totalPending">₹0</div>
+                </div>
+            </div>
+            
+            <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h3 style="color: #007bff; margin-bottom: 10px;">Add New Case</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Jobsheet No *</label>
+                        <input type="text" id="rmJobsheet" required placeholder="e.g., JS001">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>IMEI No *</label>
+                        <input type="text" id="rmImei" required placeholder="15 digit IMEI">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Model *</label>
+                        <input type="text" id="rmModel" required placeholder="e.g., Realme 11 Pro">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Brand *</label>
+                        <select id="rmBrand">
+                            <option value="Realme">Realme</option>
+                            <option value="Moto">Moto</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Total Amount *</label>
+                        <input type="number" id="rmTotalAmount" min="0" step="0.01" required onchange="calculateRMBalance()">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Advance Received</label>
+                        <input type="number" id="rmAdvance" min="0" step="0.01" value="0" onchange="calculateRMBalance()">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Balance Amount (Auto)</label>
+                        <input type="number" id="rmBalance" readonly style="background: #f0f0f0; font-weight: 700; color: #dc3545;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Case Status *</label>
+                        <select id="rmStatus">
+                            <option value="Open">Open (Pending)</option>
+                            <option value="Closed">Closed (Completed)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Customer Name</label>
+                        <input type="text" id="rmCustomer" placeholder="Customer name">
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="saveRMCase()" style="margin-top: 10px;">💾 Save Case</button>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="btn btn-success" onclick="exportRMToExcel()">📊 Export to Excel</button>
+                <select id="rmFilter" onchange="filterRMCases()" style="padding: 10px; border: 2px solid #667eea; border-radius: 6px;">
+                    <option value="all">All Cases</option>
+                    <option value="Open">Open Cases Only</option>
+                    <option value="Closed">Closed Cases Only</option>
+                    <option value="Realme">Realme Only</option>
+                    <option value="Moto">Moto Only</option>
+                </select>
+                <input type="text" class="search-box" id="rmSearch" placeholder="🔍 Search by Jobsheet, IMEI, Model..." onkeyup="searchRMCases()" style="max-width: 300px;">
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Jobsheet</th>
+                        <th>IMEI</th>
+                        <th>Model</th>
+                        <th>Brand</th>
+                        <th>Total Amt</th>
+                        <th>Advance</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rmTableBody"></tbody>
+            </table>
         </div>
         
         <div id="creditdebit" class="tab-content">
@@ -605,6 +708,7 @@
             cloudSave('invoices', invoices);
             cloudSave('inventory', inventory);
             cloudSave('creditDebit', creditDebit);
+            cloudSave('rmCases', rmCases);
             cloudSave('settings', settings);
             cloudSave('invoiceCounter', invoiceCounter);
             syncUsersToCloud();
@@ -635,6 +739,12 @@
                 updateReports();
             });
             
+            cloudListen('rmCases', (data) => {
+                rmCases = toArray(data);
+                localStorage.setItem('rmCases', JSON.stringify(rmCases));
+                loadRMCases();
+            });
+            
             cloudListen('settings', (data) => {
                 if(data) {
                     settings = data;
@@ -654,6 +764,7 @@
         let invoices = JSON.parse(localStorage.getItem('invoices')) || [];
         let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
         let creditDebit = JSON.parse(localStorage.getItem('creditDebit')) || [];
+        let rmCases = JSON.parse(localStorage.getItem('rmCases')) || [];
         let invoiceCounter = parseInt(localStorage.getItem('invoiceCounter')) || 1;
         let settings = JSON.parse(localStorage.getItem('settings')) || {
             name: 'SMART CARE MOBILES',
@@ -701,6 +812,7 @@
                 loadSales();
                 loadInventory();
                 loadCreditDebit();
+                loadRMCases();
                 loadSettings();
                 updateReports();
                 addItem();
@@ -832,6 +944,7 @@
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
             if(tabName === 'sales') loadSales();
+            if(tabName === 'realme-moto') loadRMCases();
             if(tabName === 'creditdebit') loadCreditDebit();
             if(tabName === 'inventory') loadInventory();
             if(tabName === 'reports') { loadSettings(); updateReports(); }
@@ -1647,6 +1760,7 @@
                 invoices,
                 inventory,
                 creditDebit,
+                rmCases,
                 settings,
                 invoiceCounter,
                 backupDate: new Date().toISOString()
@@ -1665,7 +1779,7 @@
             dataChanged = false;
             updateLastBackupDisplay();
             
-            alert('✅ Complete backup downloaded!\n\nIncludes: Invoices, Inventory, Credit/Debit\nUpload to Google Drive!');
+            alert('✅ Complete backup downloaded!\n\nIncludes: Invoices, Inventory, Credit/Debit, Realme/Moto\nUpload to Google Drive!');
         }
         
         function restoreFromBackup(event) {
@@ -1701,18 +1815,21 @@
                     invoices = data.invoices || [];
                     inventory = data.inventory || [];
                     creditDebit = data.creditDebit || [];
+                    rmCases = data.rmCases || [];
                     settings = data.settings || {};
                     invoiceCounter = data.invoiceCounter || 1;
                     
                     localStorage.setItem('invoices', JSON.stringify(invoices));
                     localStorage.setItem('inventory', JSON.stringify(inventory));
                     localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                    localStorage.setItem('rmCases', JSON.stringify(rmCases));
                     localStorage.setItem('settings', JSON.stringify(settings));
                     localStorage.setItem('invoiceCounter', invoiceCounter);
                     
                     loadSales();
                     loadInventory();
                     loadCreditDebit();
+                    loadRMCases();
                     loadSettings();
                     updateReports();
                     updateInventoryDatalist();
@@ -1720,7 +1837,8 @@
                     alert('✅ Data restored successfully!\n\n' +
                         `• ${invoices.length} invoices\n` +
                         `• ${inventory.length} inventory items\n` +
-                        `• ${creditDebit.length} credit/debit entries`);
+                        `• ${creditDebit.length} credit/debit entries\n` +
+                        `• ${rmCases.length} Realme/Moto cases`);
                     
                 } catch(error) {
                     alert('❌ Error reading backup file!\n\n' + error.message);
@@ -1729,6 +1847,248 @@
             
             reader.readAsText(file);
             event.target.value = '';
+        }
+        
+        // REALME/MOTO PAYMENT TRACKING FUNCTIONS
+        function calculateRMBalance() {
+            const total = parseFloat(document.getElementById('rmTotalAmount').value) || 0;
+            const advance = parseFloat(document.getElementById('rmAdvance').value) || 0;
+            const balance = total - advance;
+            document.getElementById('rmBalance').value = balance.toFixed(2);
+        }
+        
+        function saveRMCase() {
+            const jobsheet = document.getElementById('rmJobsheet').value.trim();
+            const imei = document.getElementById('rmImei').value.trim();
+            const model = document.getElementById('rmModel').value.trim();
+            const brand = document.getElementById('rmBrand').value;
+            const totalAmount = parseFloat(document.getElementById('rmTotalAmount').value) || 0;
+            const advance = parseFloat(document.getElementById('rmAdvance').value) || 0;
+            const balance = totalAmount - advance;
+            const status = document.getElementById('rmStatus').value;
+            const customer = document.getElementById('rmCustomer').value.trim();
+            
+            if(!jobsheet || !imei || !model || totalAmount <= 0) {
+                alert('❌ Please fill required fields: Jobsheet, IMEI, Model, Total Amount');
+                return;
+            }
+            
+            const rmCase = {
+                id: Date.now(),
+                jobsheet,
+                imei,
+                model,
+                brand,
+                totalAmount,
+                advance,
+                advanceDate: advance > 0 ? new Date().toISOString() : null,
+                balance,
+                status,
+                customer,
+                createdDate: new Date().toISOString(),
+                payments: advance > 0 ? [{
+                    amount: advance,
+                    date: new Date().toISOString(),
+                    type: 'Advance'
+                }] : []
+            };
+            
+            rmCases.push(rmCase);
+            localStorage.setItem('rmCases', JSON.stringify(rmCases));
+            
+            // Sync to cloud
+            cloudSave('rmCases', rmCases);
+            
+            // Reset form
+            document.getElementById('rmJobsheet').value = '';
+            document.getElementById('rmImei').value = '';
+            document.getElementById('rmModel').value = '';
+            document.getElementById('rmTotalAmount').value = '';
+            document.getElementById('rmAdvance').value = '0';
+            document.getElementById('rmBalance').value = '';
+            document.getElementById('rmCustomer').value = '';
+            
+            loadRMCases();
+            alert('✅ Case saved successfully!');
+        }
+        
+        function loadRMCases() {
+            const tbody = document.getElementById('rmTableBody');
+            tbody.innerHTML = '';
+            
+            let totalCases = rmCases.length;
+            let openCases = 0;
+            let closedCases = 0;
+            let totalPending = 0;
+            
+            [...rmCases].reverse().forEach(rmCase => {
+                if(rmCase.status === 'Open') {
+                    openCases++;
+                    totalPending += rmCase.balance;
+                } else {
+                    closedCases++;
+                }
+                
+                const row = tbody.insertRow();
+                const statusColor = rmCase.status === 'Open' ? '#dc3545' : '#28a745';
+                const statusBg = rmCase.status === 'Open' ? '#f8d7da' : '#d4edda';
+                
+                row.innerHTML = `
+                    <td><strong>${rmCase.jobsheet}</strong></td>
+                    <td style="font-size: 11px;">${rmCase.imei}</td>
+                    <td>${rmCase.model}</td>
+                    <td><span style="background: ${rmCase.brand === 'Realme' ? '#667eea' : '#764ba2'}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">${rmCase.brand}</span></td>
+                    <td><strong>₹${rmCase.totalAmount.toFixed(2)}</strong></td>
+                    <td style="color: #28a745;">₹${rmCase.advance.toFixed(2)}</td>
+                    <td style="color: ${rmCase.balance > 0 ? '#dc3545' : '#28a745'}; font-weight: 700;">₹${rmCase.balance.toFixed(2)}</td>
+                    <td><span style="background: ${statusBg}; color: ${statusColor}; padding: 5px 10px; border-radius: 4px; font-weight: 600; font-size: 12px;">${rmCase.status}</span></td>
+                    <td style="font-size: 11px;">${new Date(rmCase.createdDate).toLocaleDateString('en-IN')}</td>
+                    <td>
+                        <button class="btn btn-info" style="padding: 5px 10px; font-size: 11px;" onclick="viewRMCase(${rmCase.id})">View</button>
+                        <button class="btn btn-warning" style="padding: 5px 10px; font-size: 11px;" onclick="addRMPayment(${rmCase.id})">+Payment</button>
+                        <button class="btn btn-danger" style="padding: 5px 10px; font-size: 11px;" onclick="deleteRMCase(${rmCase.id})">Delete</button>
+                    </td>
+                `;
+            });
+            
+            document.getElementById('totalCases').textContent = totalCases;
+            document.getElementById('openCases').textContent = openCases;
+            document.getElementById('closedCases').textContent = closedCases;
+            document.getElementById('totalPending').textContent = '₹' + totalPending.toFixed(2);
+        }
+        
+        function viewRMCase(id) {
+            const rmCase = rmCases.find(c => c.id === id);
+            if(!rmCase) return;
+            
+            let paymentsHTML = '<h4>Payment History:</h4><ul style="margin: 10px 0;">';
+            if(rmCase.payments && rmCase.payments.length > 0) {
+                rmCase.payments.forEach(p => {
+                    paymentsHTML += `<li><strong>${p.type}:</strong> ₹${p.amount.toFixed(2)} on ${new Date(p.date).toLocaleDateString('en-IN')}</li>`;
+                });
+            } else {
+                paymentsHTML += '<li>No payments yet</li>';
+            }
+            paymentsHTML += '</ul>';
+            
+            alert(`📱 Case Details\n\n` +
+                `Jobsheet: ${rmCase.jobsheet}\n` +
+                `IMEI: ${rmCase.imei}\n` +
+                `Model: ${rmCase.model}\n` +
+                `Brand: ${rmCase.brand}\n` +
+                `Customer: ${rmCase.customer || 'N/A'}\n\n` +
+                `Total Amount: ₹${rmCase.totalAmount.toFixed(2)}\n` +
+                `Advance: ₹${rmCase.advance.toFixed(2)}\n` +
+                `Balance: ₹${rmCase.balance.toFixed(2)}\n\n` +
+                `Status: ${rmCase.status}\n` +
+                `Created: ${new Date(rmCase.createdDate).toLocaleString('en-IN')}`);
+        }
+        
+        function addRMPayment(id) {
+            const rmCase = rmCases.find(c => c.id === id);
+            if(!rmCase) return;
+            
+            if(rmCase.balance <= 0) {
+                alert('❌ No pending balance for this case!');
+                return;
+            }
+            
+            const payment = prompt(`Add Payment for ${rmCase.jobsheet}\n\nPending Balance: ₹${rmCase.balance.toFixed(2)}\n\nEnter amount received:`);
+            if(!payment) return;
+            
+            const amount = parseFloat(payment);
+            if(isNaN(amount) || amount <= 0) {
+                alert('❌ Invalid amount!');
+                return;
+            }
+            
+            if(amount > rmCase.balance) {
+                alert('❌ Amount cannot be more than balance!');
+                return;
+            }
+            
+            // Add payment
+            rmCase.payments = rmCase.payments || [];
+            rmCase.payments.push({
+                amount,
+                date: new Date().toISOString(),
+                type: 'Pending Payment'
+            });
+            
+            // Update balance
+            rmCase.balance -= amount;
+            
+            // Auto-close if fully paid
+            if(rmCase.balance <= 0) {
+                rmCase.status = 'Closed';
+                alert('✅ Payment recorded! Case automatically closed (Fully Paid)');
+            } else {
+                alert('✅ Payment recorded! Remaining: ₹' + rmCase.balance.toFixed(2));
+            }
+            
+            localStorage.setItem('rmCases', JSON.stringify(rmCases));
+            cloudSave('rmCases', rmCases);
+            loadRMCases();
+        }
+        
+        function deleteRMCase(id) {
+            if(confirm('Delete this case? Cannot be undone!')) {
+                rmCases = rmCases.filter(c => c.id !== id);
+                localStorage.setItem('rmCases', JSON.stringify(rmCases));
+                cloudSave('rmCases', rmCases);
+                loadRMCases();
+                alert('✅ Case deleted!');
+            }
+        }
+        
+        function filterRMCases() {
+            const filter = document.getElementById('rmFilter').value;
+            const rows = document.querySelectorAll('#rmTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent;
+                if(filter === 'all') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = text.includes(filter) ? '' : 'none';
+                }
+            });
+        }
+        
+        function searchRMCases() {
+            const search = document.getElementById('rmSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#rmTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        }
+        
+        function exportRMToExcel() {
+            let csv = 'Jobsheet,IMEI,Model,Brand,Customer,Total Amount,Advance,Balance,Status,Created Date\n';
+            
+            rmCases.forEach(c => {
+                csv += `${c.jobsheet},${c.imei},${c.model},${c.brand},"${c.customer || 'N/A'}",`;
+                csv += `₹${c.totalAmount.toFixed(2)},₹${c.advance.toFixed(2)},₹${c.balance.toFixed(2)},`;
+                csv += `${c.status},${new Date(c.createdDate).toLocaleDateString('en-IN')}\n`;
+            });
+            
+            // Add summary
+            const totalPending = rmCases.filter(c => c.status === 'Open').reduce((sum, c) => sum + c.balance, 0);
+            csv += '\nSUMMARY\n';
+            csv += `Total Cases,${rmCases.length}\n`;
+            csv += `Open Cases,${rmCases.filter(c => c.status === 'Open').length}\n`;
+            csv += `Closed Cases,${rmCases.filter(c => c.status === 'Closed').length}\n`;
+            csv += `Total Pending,₹${totalPending.toFixed(2)}\n`;
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'realme_moto_cases_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
         }
         
         window.onclick = function(event) {
