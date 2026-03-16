@@ -359,8 +359,15 @@
                         </select>
                     </div>
                     <div class="form-group" style="margin: 0;">
-                        <label>Customer Name</label>
-                        <input type="text" id="rmCustomer" placeholder="Customer name">
+                        <label>Payment Mode *</label>
+                        <select id="rmPaymentMode" onchange="togglePaymentDetails()">
+                            <option value="Cash">Cash</option>
+                            <option value="Online">Online</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="rmPaymentDetailsDiv" style="margin: 0; display: none;">
+                        <label>Payment Details (UPI/Account)</label>
+                        <input type="text" id="rmPaymentDetails" placeholder="UPI ID / Account No / Reference">
                     </div>
                 </div>
                 <button class="btn btn-success" onclick="saveRMCase()" style="margin-top: 10px;">💾 Save Case</button>
@@ -387,9 +394,12 @@
                         <th>Brand</th>
                         <th>Total Amt</th>
                         <th>Advance</th>
+                        <th>Adv. Date</th>
                         <th>Balance</th>
                         <th>Status</th>
-                        <th>Date</th>
+                        <th>Close Date</th>
+                        <th>Payment Mode</th>
+                        <th>Created</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -1850,6 +1860,12 @@
         }
         
         // REALME/MOTO PAYMENT TRACKING FUNCTIONS
+        function togglePaymentDetails() {
+            const mode = document.getElementById('rmPaymentMode').value;
+            const detailsDiv = document.getElementById('rmPaymentDetailsDiv');
+            detailsDiv.style.display = mode === 'Online' ? 'block' : 'none';
+        }
+        
         function calculateRMBalance() {
             const total = parseFloat(document.getElementById('rmTotalAmount').value) || 0;
             const advance = parseFloat(document.getElementById('rmAdvance').value) || 0;
@@ -1866,12 +1882,20 @@
             const advance = parseFloat(document.getElementById('rmAdvance').value) || 0;
             const balance = totalAmount - advance;
             const status = document.getElementById('rmStatus').value;
-            const customer = document.getElementById('rmCustomer').value.trim();
+            const paymentMode = document.getElementById('rmPaymentMode').value;
+            const paymentDetails = document.getElementById('rmPaymentDetails').value.trim();
             
             if(!jobsheet || !imei || !model || totalAmount <= 0) {
                 alert('❌ Please fill required fields: Jobsheet, IMEI, Model, Total Amount');
                 return;
             }
+            
+            if(paymentMode === 'Online' && !paymentDetails) {
+                alert('❌ Please enter payment details for Online payment!');
+                return;
+            }
+            
+            const now = new Date().toISOString();
             
             const rmCase = {
                 id: Date.now(),
@@ -1881,15 +1905,19 @@
                 brand,
                 totalAmount,
                 advance,
-                advanceDate: advance > 0 ? new Date().toISOString() : null,
+                advanceDate: advance > 0 ? now : null,
                 balance,
                 status,
-                customer,
-                createdDate: new Date().toISOString(),
+                closedDate: status === 'Closed' ? now : null,
+                paymentMode,
+                paymentDetails: paymentMode === 'Online' ? paymentDetails : '',
+                createdDate: now,
                 payments: advance > 0 ? [{
                     amount: advance,
-                    date: new Date().toISOString(),
-                    type: 'Advance'
+                    date: now,
+                    type: 'Advance',
+                    mode: paymentMode,
+                    details: paymentMode === 'Online' ? paymentDetails : ''
                 }] : []
             };
             
@@ -1906,7 +1934,8 @@
             document.getElementById('rmTotalAmount').value = '';
             document.getElementById('rmAdvance').value = '0';
             document.getElementById('rmBalance').value = '';
-            document.getElementById('rmCustomer').value = '';
+            document.getElementById('rmPaymentDetails').value = '';
+            document.getElementById('rmPaymentDetailsDiv').style.display = 'none';
             
             loadRMCases();
             alert('✅ Case saved successfully!');
@@ -1933,6 +1962,11 @@
                 const statusColor = rmCase.status === 'Open' ? '#dc3545' : '#28a745';
                 const statusBg = rmCase.status === 'Open' ? '#f8d7da' : '#d4edda';
                 
+                // Format dates
+                const advDate = rmCase.advanceDate ? new Date(rmCase.advanceDate).toLocaleDateString('en-IN') : '-';
+                const closeDate = rmCase.closedDate ? new Date(rmCase.closedDate).toLocaleDateString('en-IN') : '-';
+                const createdDate = new Date(rmCase.createdDate).toLocaleDateString('en-IN');
+                
                 row.innerHTML = `
                     <td><strong>${rmCase.jobsheet}</strong></td>
                     <td style="font-size: 11px;">${rmCase.imei}</td>
@@ -1940,13 +1974,16 @@
                     <td><span style="background: ${rmCase.brand === 'Realme' ? '#667eea' : '#764ba2'}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">${rmCase.brand}</span></td>
                     <td><strong>₹${rmCase.totalAmount.toFixed(2)}</strong></td>
                     <td style="color: #28a745;">₹${rmCase.advance.toFixed(2)}</td>
+                    <td style="font-size: 11px;">${advDate}</td>
                     <td style="color: ${rmCase.balance > 0 ? '#dc3545' : '#28a745'}; font-weight: 700;">₹${rmCase.balance.toFixed(2)}</td>
                     <td><span style="background: ${statusBg}; color: ${statusColor}; padding: 5px 10px; border-radius: 4px; font-weight: 600; font-size: 12px;">${rmCase.status}</span></td>
-                    <td style="font-size: 11px;">${new Date(rmCase.createdDate).toLocaleDateString('en-IN')}</td>
+                    <td style="font-size: 11px; color: ${rmCase.closedDate ? '#28a745' : '#999'};">${closeDate}</td>
+                    <td><span style="background: ${rmCase.paymentMode === 'Online' ? '#17a2b8' : '#6c757d'}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">${rmCase.paymentMode || 'Cash'}</span></td>
+                    <td style="font-size: 11px;">${createdDate}</td>
                     <td>
                         <button class="btn btn-info" style="padding: 5px 10px; font-size: 11px;" onclick="viewRMCase(${rmCase.id})">View</button>
-                        <button class="btn btn-warning" style="padding: 5px 10px; font-size: 11px;" onclick="addRMPayment(${rmCase.id})">+Payment</button>
-                        <button class="btn btn-danger" style="padding: 5px 10px; font-size: 11px;" onclick="deleteRMCase(${rmCase.id})">Delete</button>
+                        <button class="btn btn-warning" style="padding: 5px 10px; font-size: 11px;" onclick="addRMPayment(${rmCase.id})">+Pay</button>
+                        <button class="btn btn-danger" style="padding: 5px 10px; font-size: 11px;" onclick="deleteRMCase(${rmCase.id})">Del</button>
                     </td>
                 `;
             });
@@ -1961,27 +1998,33 @@
             const rmCase = rmCases.find(c => c.id === id);
             if(!rmCase) return;
             
-            let paymentsHTML = '<h4>Payment History:</h4><ul style="margin: 10px 0;">';
+            let paymentsHTML = '\n\nPayment History:\n';
             if(rmCase.payments && rmCase.payments.length > 0) {
                 rmCase.payments.forEach(p => {
-                    paymentsHTML += `<li><strong>${p.type}:</strong> ₹${p.amount.toFixed(2)} on ${new Date(p.date).toLocaleDateString('en-IN')}</li>`;
+                    paymentsHTML += `- ${p.type}: Rs ${p.amount.toFixed(2)} (${p.mode || 'Cash'}) on ${new Date(p.date).toLocaleDateString('en-IN')}\n`;
                 });
             } else {
-                paymentsHTML += '<li>No payments yet</li>';
+                paymentsHTML += '- No payments yet\n';
             }
-            paymentsHTML += '</ul>';
+            
+            const advDate = rmCase.advanceDate ? new Date(rmCase.advanceDate).toLocaleDateString('en-IN') : 'N/A';
+            const closeDate = rmCase.closedDate ? new Date(rmCase.closedDate).toLocaleDateString('en-IN') : 'Not closed yet';
             
             alert(`📱 Case Details\n\n` +
                 `Jobsheet: ${rmCase.jobsheet}\n` +
                 `IMEI: ${rmCase.imei}\n` +
                 `Model: ${rmCase.model}\n` +
-                `Brand: ${rmCase.brand}\n` +
-                `Customer: ${rmCase.customer || 'N/A'}\n\n` +
-                `Total Amount: ₹${rmCase.totalAmount.toFixed(2)}\n` +
-                `Advance: ₹${rmCase.advance.toFixed(2)}\n` +
-                `Balance: ₹${rmCase.balance.toFixed(2)}\n\n` +
+                `Brand: ${rmCase.brand}\n\n` +
+                `Total Amount: Rs ${rmCase.totalAmount.toFixed(2)}\n` +
+                `Advance: Rs ${rmCase.advance.toFixed(2)}\n` +
+                `Advance Date: ${advDate}\n` +
+                `Balance: Rs ${rmCase.balance.toFixed(2)}\n\n` +
                 `Status: ${rmCase.status}\n` +
-                `Created: ${new Date(rmCase.createdDate).toLocaleString('en-IN')}`);
+                `Closed Date: ${closeDate}\n\n` +
+                `Payment Mode: ${rmCase.paymentMode || 'Cash'}\n` +
+                `Payment Details: ${rmCase.paymentDetails || 'N/A'}\n\n` +
+                `Created: ${new Date(rmCase.createdDate).toLocaleString('en-IN')}` +
+                paymentsHTML);
         }
         
         function addRMPayment(id) {
@@ -2012,15 +2055,17 @@
             rmCase.payments.push({
                 amount,
                 date: new Date().toISOString(),
-                type: 'Pending Payment'
+                type: 'Pending Payment',
+                mode: rmCase.paymentMode || 'Cash'
             });
             
             // Update balance
             rmCase.balance -= amount;
             
-            // Auto-close if fully paid
+            // Auto-close if fully paid and record closing date
             if(rmCase.balance <= 0) {
                 rmCase.status = 'Closed';
+                rmCase.closedDate = new Date().toISOString();
                 alert('✅ Payment recorded! Case automatically closed (Fully Paid)');
             } else {
                 alert('✅ Payment recorded! Remaining: ₹' + rmCase.balance.toFixed(2));
@@ -2066,12 +2111,18 @@
         }
         
         function exportRMToExcel() {
-            let csv = 'Jobsheet,IMEI,Model,Brand,Customer,Total Amount,Advance,Balance,Status,Created Date\n';
+            // Use UTF-8 BOM for proper Excel encoding
+            let csv = '\uFEFF'; // UTF-8 BOM
+            csv += 'Jobsheet,IMEI,Model,Brand,Total Amount,Advance,Advance Date,Balance,Status,Closed Date,Payment Mode,Payment Details,Created Date\n';
             
             rmCases.forEach(c => {
-                csv += `${c.jobsheet},${c.imei},${c.model},${c.brand},"${c.customer || 'N/A'}",`;
-                csv += `₹${c.totalAmount.toFixed(2)},₹${c.advance.toFixed(2)},₹${c.balance.toFixed(2)},`;
-                csv += `${c.status},${new Date(c.createdDate).toLocaleDateString('en-IN')}\n`;
+                const advDate = c.advanceDate ? new Date(c.advanceDate).toLocaleDateString('en-IN') : '-';
+                const closeDate = c.closedDate ? new Date(c.closedDate).toLocaleDateString('en-IN') : '-';
+                const createdDate = new Date(c.createdDate).toLocaleDateString('en-IN');
+                
+                csv += `${c.jobsheet},${c.imei},${c.model},${c.brand},`;
+                csv += `Rs ${c.totalAmount.toFixed(2)},Rs ${c.advance.toFixed(2)},${advDate},Rs ${c.balance.toFixed(2)},`;
+                csv += `${c.status},${closeDate},${c.paymentMode || 'Cash'},"${c.paymentDetails || '-'}",${createdDate}\n`;
             });
             
             // Add summary
@@ -2080,9 +2131,9 @@
             csv += `Total Cases,${rmCases.length}\n`;
             csv += `Open Cases,${rmCases.filter(c => c.status === 'Open').length}\n`;
             csv += `Closed Cases,${rmCases.filter(c => c.status === 'Closed').length}\n`;
-            csv += `Total Pending,₹${totalPending.toFixed(2)}\n`;
+            csv += `Total Pending,Rs ${totalPending.toFixed(2)}\n`;
             
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
