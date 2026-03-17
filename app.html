@@ -385,6 +385,47 @@
                 <input type="text" class="search-box" id="rmSearch" placeholder="🔍 Search by Jobsheet, IMEI, Model..." onkeyup="searchRMCases()" style="max-width: 300px;">
             </div>
             
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
+                <h3 style="color: #856404; margin-bottom: 10px;">💸 Daily Office Expenses</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Expense Name *</label>
+                        <input type="text" id="dailyExpenseName" placeholder="e.g., Rent, Electricity, Transport">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Amount (Rs) *</label>
+                        <input type="number" id="dailyExpenseAmount" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Date</label>
+                        <input type="date" id="dailyExpenseDate" value="">
+                    </div>
+                    <button class="btn btn-warning" onclick="addDailyExpense()" style="margin: 0;">💸 Add Expense</button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.7); border-radius: 6px;">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <div>
+                            <strong style="font-size: 12px; color: #666;">Today's Collection:</strong>
+                            <div style="font-size: 18px; font-weight: 700; color: #28a745;" id="todayCollection">Rs 0.00</div>
+                        </div>
+                        <div>
+                            <strong style="font-size: 12px; color: #666;">Today's Expenses:</strong>
+                            <div style="font-size: 18px; font-weight: 700; color: #dc3545;" id="todayExpenses">Rs 0.00</div>
+                        </div>
+                        <div>
+                            <strong style="font-size: 12px; color: #666;">Today's Net Profit:</strong>
+                            <div style="font-size: 18px; font-weight: 700; color: #007bff;" id="todayProfit">Rs 0.00</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-info" onclick="viewDailyExpenses()" style="font-size: 12px; padding: 6px 12px;">📋 View All Expenses</button>
+                    <button class="btn btn-success" onclick="exportExpensesToExcel()" style="font-size: 12px; padding: 6px 12px;">📊 Export Expenses</button>
+                </div>
+            </div>
+            
             <table>
                 <thead>
                     <tr>
@@ -719,6 +760,7 @@
             cloudSave('inventory', inventory);
             cloudSave('creditDebit', creditDebit);
             cloudSave('rmCases', rmCases);
+            cloudSave('dailyExpenses', dailyExpenses);
             cloudSave('settings', settings);
             cloudSave('invoiceCounter', invoiceCounter);
             syncUsersToCloud();
@@ -753,6 +795,13 @@
                 rmCases = toArray(data);
                 localStorage.setItem('rmCases', JSON.stringify(rmCases));
                 loadRMCases();
+                updateDailyStats();
+            });
+            
+            cloudListen('dailyExpenses', (data) => {
+                dailyExpenses = toArray(data);
+                localStorage.setItem('dailyExpenses', JSON.stringify(dailyExpenses));
+                updateDailyStats();
             });
             
             cloudListen('settings', (data) => {
@@ -775,6 +824,7 @@
         let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
         let creditDebit = JSON.parse(localStorage.getItem('creditDebit')) || [];
         let rmCases = JSON.parse(localStorage.getItem('rmCases')) || [];
+        let dailyExpenses = JSON.parse(localStorage.getItem('dailyExpenses')) || [];
         let invoiceCounter = parseInt(localStorage.getItem('invoiceCounter')) || 1;
         let settings = JSON.parse(localStorage.getItem('settings')) || {
             name: 'SMART CARE MOBILES',
@@ -1771,6 +1821,7 @@
                 inventory,
                 creditDebit,
                 rmCases,
+                dailyExpenses,
                 settings,
                 invoiceCounter,
                 backupDate: new Date().toISOString()
@@ -1789,7 +1840,7 @@
             dataChanged = false;
             updateLastBackupDisplay();
             
-            alert('✅ Complete backup downloaded!\n\nIncludes: Invoices, Inventory, Credit/Debit, Realme/Moto\nUpload to Google Drive!');
+            alert('✅ Complete backup downloaded!\n\nIncludes: Invoices, Inventory, Credit/Debit, Realme/Moto, Daily Expenses\nUpload to Google Drive!');
         }
         
         function restoreFromBackup(event) {
@@ -1826,6 +1877,7 @@
                     inventory = data.inventory || [];
                     creditDebit = data.creditDebit || [];
                     rmCases = data.rmCases || [];
+                    dailyExpenses = data.dailyExpenses || [];
                     settings = data.settings || {};
                     invoiceCounter = data.invoiceCounter || 1;
                     
@@ -1833,6 +1885,7 @@
                     localStorage.setItem('inventory', JSON.stringify(inventory));
                     localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
                     localStorage.setItem('rmCases', JSON.stringify(rmCases));
+                    localStorage.setItem('dailyExpenses', JSON.stringify(dailyExpenses));
                     localStorage.setItem('settings', JSON.stringify(settings));
                     localStorage.setItem('invoiceCounter', invoiceCounter);
                     
@@ -1848,7 +1901,8 @@
                         `• ${invoices.length} invoices\n` +
                         `• ${inventory.length} inventory items\n` +
                         `• ${creditDebit.length} credit/debit entries\n` +
-                        `• ${rmCases.length} Realme/Moto cases`);
+                        `• ${rmCases.length} Realme/Moto cases\n` +
+                        `• ${dailyExpenses.length} daily expenses`);
                     
                 } catch(error) {
                     alert('❌ Error reading backup file!\n\n' + error.message);
@@ -1992,16 +2046,28 @@
             document.getElementById('openCases').textContent = openCases;
             document.getElementById('closedCases').textContent = closedCases;
             document.getElementById('totalPending').textContent = '₹' + totalPending.toFixed(2);
+            
+            // Set today's date in expense form
+            const today = new Date().toISOString().split('T')[0];
+            if(document.getElementById('dailyExpenseDate')) {
+                document.getElementById('dailyExpenseDate').value = today;
+            }
+            
+            // Update daily stats
+            updateDailyStats();
         }
         
         function viewRMCase(id) {
             const rmCase = rmCases.find(c => c.id === id);
             if(!rmCase) return;
             
-            let paymentsHTML = '\n\nPayment History:\n';
+            let paymentsHTML = '\n\n📊 Payment History:\n';
             if(rmCase.payments && rmCase.payments.length > 0) {
-                rmCase.payments.forEach(p => {
-                    paymentsHTML += `- ${p.type}: Rs ${p.amount.toFixed(2)} (${p.mode || 'Cash'}) on ${new Date(p.date).toLocaleDateString('en-IN')}\n`;
+                rmCase.payments.forEach((p, index) => {
+                    paymentsHTML += `\n${index + 1}. ${p.type}: Rs ${p.amount.toFixed(2)}\n`;
+                    paymentsHTML += `   Mode: ${p.mode || 'Cash'}`;
+                    if(p.details) paymentsHTML += ` (${p.details})`;
+                    paymentsHTML += `\n   Date: ${new Date(p.date).toLocaleString('en-IN')}\n`;
                 });
             } else {
                 paymentsHTML += '- No payments yet\n';
@@ -2010,20 +2076,24 @@
             const advDate = rmCase.advanceDate ? new Date(rmCase.advanceDate).toLocaleDateString('en-IN') : 'N/A';
             const closeDate = rmCase.closedDate ? new Date(rmCase.closedDate).toLocaleDateString('en-IN') : 'Not closed yet';
             
-            alert(`📱 Case Details\n\n` +
+            alert(`📱 CASE DETAILS\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
                 `Jobsheet: ${rmCase.jobsheet}\n` +
                 `IMEI: ${rmCase.imei}\n` +
                 `Model: ${rmCase.model}\n` +
                 `Brand: ${rmCase.brand}\n\n` +
-                `Total Amount: Rs ${rmCase.totalAmount.toFixed(2)}\n` +
+                `💰 FINANCIAL:\n` +
+                `Total: Rs ${rmCase.totalAmount.toFixed(2)}\n` +
                 `Advance: Rs ${rmCase.advance.toFixed(2)}\n` +
                 `Advance Date: ${advDate}\n` +
                 `Balance: Rs ${rmCase.balance.toFixed(2)}\n\n` +
+                `📋 STATUS:\n` +
                 `Status: ${rmCase.status}\n` +
-                `Closed Date: ${closeDate}\n\n` +
-                `Payment Mode: ${rmCase.paymentMode || 'Cash'}\n` +
-                `Payment Details: ${rmCase.paymentDetails || 'N/A'}\n\n` +
-                `Created: ${new Date(rmCase.createdDate).toLocaleString('en-IN')}` +
+                `Closed: ${closeDate}\n` +
+                `Created: ${new Date(rmCase.createdDate).toLocaleDateString('en-IN')}\n\n` +
+                `💳 PAYMENT:\n` +
+                `Mode: ${rmCase.paymentMode || 'Cash'}\n` +
+                `Details: ${rmCase.paymentDetails || 'N/A'}` +
                 paymentsHTML);
         }
         
@@ -2036,7 +2106,8 @@
                 return;
             }
             
-            const payment = prompt(`Add Payment for ${rmCase.jobsheet}\n\nPending Balance: ₹${rmCase.balance.toFixed(2)}\n\nEnter amount received:`);
+            // Step 1: Get payment amount
+            const payment = prompt(`💰 Add Payment for ${rmCase.jobsheet}\n\nPending Balance: Rs ${rmCase.balance.toFixed(2)}\n\nEnter amount received:`);
             if(!payment) return;
             
             const amount = parseFloat(payment);
@@ -2050,13 +2121,23 @@
                 return;
             }
             
-            // Add payment
+            // Step 2: Get payment mode
+            const paymentMode = confirm('💳 Payment Mode\n\nClick OK for ONLINE\nClick Cancel for CASH');
+            const mode = paymentMode ? 'Online' : 'Cash';
+            
+            let paymentDetails = '';
+            if(mode === 'Online') {
+                paymentDetails = prompt('📱 Enter Payment Details:\n\n(UPI ID / Account No / Reference)') || '';
+            }
+            
+            // Add payment record
             rmCase.payments = rmCase.payments || [];
             rmCase.payments.push({
                 amount,
                 date: new Date().toISOString(),
-                type: 'Pending Payment',
-                mode: rmCase.paymentMode || 'Cash'
+                type: rmCase.balance - amount <= 0 ? 'Final Payment' : 'Partial Payment',
+                mode,
+                details: paymentDetails
             });
             
             // Update balance
@@ -2066,9 +2147,9 @@
             if(rmCase.balance <= 0) {
                 rmCase.status = 'Closed';
                 rmCase.closedDate = new Date().toISOString();
-                alert('✅ Payment recorded! Case automatically closed (Fully Paid)');
+                alert(`✅ PAYMENT COMPLETE!\n\nAmount Received: Rs ${amount.toFixed(2)}\nMode: ${mode}\n\nCase Closed Successfully!`);
             } else {
-                alert('✅ Payment recorded! Remaining: ₹' + rmCase.balance.toFixed(2));
+                alert(`✅ Payment Recorded!\n\nAmount: Rs ${amount.toFixed(2)}\nMode: ${mode}\n\nRemaining Balance: Rs ${rmCase.balance.toFixed(2)}`);
             }
             
             localStorage.setItem('rmCases', JSON.stringify(rmCases));
@@ -2082,8 +2163,156 @@
                 localStorage.setItem('rmCases', JSON.stringify(rmCases));
                 cloudSave('rmCases', rmCases);
                 loadRMCases();
+                updateDailyStats();
                 alert('✅ Case deleted!');
             }
+        }
+        
+        // DAILY EXPENSES FUNCTIONS
+        function addDailyExpense() {
+            const name = document.getElementById('dailyExpenseName').value.trim();
+            const amount = parseFloat(document.getElementById('dailyExpenseAmount').value) || 0;
+            const date = document.getElementById('dailyExpenseDate').value || new Date().toISOString().split('T')[0];
+            
+            if(!name || amount <= 0) {
+                alert('❌ Please enter expense name and amount!');
+                return;
+            }
+            
+            const expense = {
+                id: Date.now(),
+                name,
+                amount,
+                date: date + 'T00:00:00.000Z',
+                createdDate: new Date().toISOString()
+            };
+            
+            dailyExpenses.push(expense);
+            localStorage.setItem('dailyExpenses', JSON.stringify(dailyExpenses));
+            cloudSave('dailyExpenses', dailyExpenses);
+            
+            // Reset form
+            document.getElementById('dailyExpenseName').value = '';
+            document.getElementById('dailyExpenseAmount').value = '';
+            document.getElementById('dailyExpenseDate').value = '';
+            
+            updateDailyStats();
+            alert(`✅ Expense Added!\n\n${name}: Rs ${amount.toFixed(2)}\nDate: ${new Date(date).toLocaleDateString('en-IN')}`);
+        }
+        
+        function updateDailyStats() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Calculate today's collection from closed cases
+            let todayCollection = 0;
+            rmCases.forEach(c => {
+                if(c.payments && c.payments.length > 0) {
+                    c.payments.forEach(p => {
+                        const payDate = new Date(p.date).toISOString().split('T')[0];
+                        if(payDate === today) {
+                            todayCollection += p.amount;
+                        }
+                    });
+                }
+            });
+            
+            // Calculate today's expenses
+            let todayExpense = 0;
+            dailyExpenses.forEach(e => {
+                const expDate = new Date(e.date).toISOString().split('T')[0];
+                if(expDate === today) {
+                    todayExpense += e.amount;
+                }
+            });
+            
+            const profit = todayCollection - todayExpense;
+            
+            document.getElementById('todayCollection').textContent = 'Rs ' + todayCollection.toFixed(2);
+            document.getElementById('todayExpenses').textContent = 'Rs ' + todayExpense.toFixed(2);
+            document.getElementById('todayProfit').textContent = 'Rs ' + profit.toFixed(2);
+            document.getElementById('todayProfit').style.color = profit >= 0 ? '#28a745' : '#dc3545';
+        }
+        
+        function viewDailyExpenses() {
+            if(dailyExpenses.length === 0) {
+                alert('📋 No expenses recorded yet!');
+                return;
+            }
+            
+            let msg = '💸 ALL OFFICE EXPENSES\n━━━━━━━━━━━━━━━━━━━━\n\n';
+            
+            // Group by date
+            const grouped = {};
+            dailyExpenses.forEach(e => {
+                const date = new Date(e.date).toLocaleDateString('en-IN');
+                if(!grouped[date]) grouped[date] = [];
+                grouped[date].push(e);
+            });
+            
+            Object.keys(grouped).sort().reverse().forEach(date => {
+                const dayTotal = grouped[date].reduce((sum, e) => sum + e.amount, 0);
+                msg += `📅 ${date} (Total: Rs ${dayTotal.toFixed(2)})\n`;
+                grouped[date].forEach(e => {
+                    msg += `   • ${e.name}: Rs ${e.amount.toFixed(2)}\n`;
+                });
+                msg += '\n';
+            });
+            
+            const total = dailyExpenses.reduce((sum, e) => sum + e.amount, 0);
+            msg += `━━━━━━━━━━━━━━━━━━━━\nTotal Expenses: Rs ${total.toFixed(2)}`;
+            
+            alert(msg);
+        }
+        
+        function exportExpensesToExcel() {
+            if(dailyExpenses.length === 0) {
+                alert('❌ No expenses to export!');
+                return;
+            }
+            
+            // Ask for date range
+            const choice = confirm('📊 EXPORT EXPENSES\n\nOK = Specific Date\nCancel = All Expenses');
+            
+            let filtered = dailyExpenses;
+            let filename = 'office_expenses_all';
+            
+            if(choice) {
+                const dateInput = prompt('Enter date (DD/MM/YYYY):');
+                if(dateInput) {
+                    const parts = dateInput.split('/');
+                    if(parts.length === 3) {
+                        const searchDate = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                        filtered = dailyExpenses.filter(e => {
+                            const eDate = new Date(e.date).toISOString().split('T')[0];
+                            return eDate === searchDate;
+                        });
+                        filename = `office_expenses_${parts[0]}_${parts[1]}_${parts[2]}`;
+                    }
+                }
+            } else {
+                filename = 'office_expenses_all_' + new Date().toISOString().split('T')[0];
+            }
+            
+            let csv = '\uFEFF'; // UTF-8 BOM
+            csv += 'Date,Expense Name,Amount\n';
+            
+            filtered.forEach(e => {
+                const date = new Date(e.date).toLocaleDateString('en-IN');
+                csv += `${date},"${e.name}",Rs ${e.amount.toFixed(2)}\n`;
+            });
+            
+            const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+            csv += `\nTOTAL EXPENSES,Rs ${total.toFixed(2)}\n`;
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            alert(`✅ Expenses exported!\n\nCount: ${filtered.length}\nTotal: Rs ${total.toFixed(2)}`);
         }
         
         function filterRMCases() {
@@ -2111,11 +2340,47 @@
         }
         
         function exportRMToExcel() {
+            // Ask for date range or all data
+            const choice = confirm('📊 EXPORT OPTIONS\n\nOK = Specific Date\nCancel = All Data');
+            
+            let filteredCases = rmCases;
+            let filteredExpenses = dailyExpenses;
+            let filename = 'realme_moto_all_cases';
+            
+            if(choice) {
+                const dateInput = prompt('Enter date (DD/MM/YYYY):\n\nExample: 16/03/2026');
+                if(dateInput) {
+                    const parts = dateInput.split('/');
+                    if(parts.length === 3) {
+                        const searchDate = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                        
+                        // Filter cases by created date
+                        filteredCases = rmCases.filter(c => {
+                            const cDate = new Date(c.createdDate).toISOString().split('T')[0];
+                            return cDate === searchDate;
+                        });
+                        
+                        // Filter expenses by date
+                        filteredExpenses = dailyExpenses.filter(e => {
+                            const eDate = new Date(e.date).toISOString().split('T')[0];
+                            return eDate === searchDate;
+                        });
+                        
+                        filename = `complete_report_${parts[0]}_${parts[1]}_${parts[2]}`;
+                    }
+                }
+            } else {
+                filename = 'complete_report_all_' + new Date().toISOString().split('T')[0];
+            }
+            
             // Use UTF-8 BOM for proper Excel encoding
             let csv = '\uFEFF'; // UTF-8 BOM
+            
+            // SECTION 1: CASES DATA
+            csv += 'REALME/MOTO CASES\n';
             csv += 'Jobsheet,IMEI,Model,Brand,Total Amount,Advance,Advance Date,Balance,Status,Closed Date,Payment Mode,Payment Details,Created Date\n';
             
-            rmCases.forEach(c => {
+            filteredCases.forEach(c => {
                 const advDate = c.advanceDate ? new Date(c.advanceDate).toLocaleDateString('en-IN') : '-';
                 const closeDate = c.closedDate ? new Date(c.closedDate).toLocaleDateString('en-IN') : '-';
                 const createdDate = new Date(c.createdDate).toLocaleDateString('en-IN');
@@ -2125,21 +2390,67 @@
                 csv += `${c.status},${closeDate},${c.paymentMode || 'Cash'},"${c.paymentDetails || '-'}",${createdDate}\n`;
             });
             
-            // Add summary
-            const totalPending = rmCases.filter(c => c.status === 'Open').reduce((sum, c) => sum + c.balance, 0);
-            csv += '\nSUMMARY\n';
-            csv += `Total Cases,${rmCases.length}\n`;
-            csv += `Open Cases,${rmCases.filter(c => c.status === 'Open').length}\n`;
-            csv += `Closed Cases,${rmCases.filter(c => c.status === 'Closed').length}\n`;
-            csv += `Total Pending,Rs ${totalPending.toFixed(2)}\n`;
+            // SECTION 2: OFFICE EXPENSES
+            csv += '\n\nOFFICE EXPENSES\n';
+            csv += 'Date,Expense Name,Amount\n';
+            
+            let totalExpenses = 0;
+            filteredExpenses.forEach(e => {
+                const date = new Date(e.date).toLocaleDateString('en-IN');
+                csv += `${date},"${e.name}",Rs ${e.amount.toFixed(2)}\n`;
+                totalExpenses += e.amount;
+            });
+            
+            // SECTION 3: PAYMENT COLLECTION BREAKDOWN
+            csv += '\n\nPAYMENT COLLECTION\n';
+            csv += 'Date,Jobsheet,Payment Type,Amount,Payment Mode\n';
+            
+            let totalCollection = 0;
+            filteredCases.forEach(c => {
+                if(c.payments && c.payments.length > 0) {
+                    c.payments.forEach(p => {
+                        const payDate = new Date(p.date).toLocaleDateString('en-IN');
+                        csv += `${payDate},${c.jobsheet},${p.type},Rs ${p.amount.toFixed(2)},${p.mode}\n`;
+                        totalCollection += p.amount;
+                    });
+                }
+            });
+            
+            // SECTION 4: COMBINED FINANCIAL SUMMARY
+            const totalRevenue = filteredCases.reduce((sum, c) => sum + c.totalAmount, 0);
+            const totalPending = filteredCases.filter(c => c.status === 'Open').reduce((sum, c) => sum + c.balance, 0);
+            const netProfit = totalCollection - totalExpenses;
+            
+            csv += '\n\nCOMBINED FINANCIAL SUMMARY\n';
+            csv += 'Description,Amount\n';
+            csv += `Total Cases,${filteredCases.length}\n`;
+            csv += `Open Cases,${filteredCases.filter(c => c.status === 'Open').length}\n`;
+            csv += `Closed Cases,${filteredCases.filter(c => c.status === 'Closed').length}\n`;
+            csv += '\n';
+            csv += `Total Revenue (Cases),Rs ${totalRevenue.toFixed(2)}\n`;
+            csv += `Total Collection Received,Rs ${totalCollection.toFixed(2)}\n`;
+            csv += `Pending Balance,Rs ${totalPending.toFixed(2)}\n`;
+            csv += '\n';
+            csv += `Office Expenses,Rs ${totalExpenses.toFixed(2)}\n`;
+            csv += `Expense Count,${filteredExpenses.length}\n`;
+            csv += '\n';
+            csv += `NET PROFIT (Collection - Expenses),Rs ${netProfit.toFixed(2)}\n`;
+            csv += `Profit Margin,${totalCollection > 0 ? ((netProfit/totalCollection)*100).toFixed(2) : 0}%\n`;
             
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'realme_moto_cases_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.download = filename + '.csv';
             a.click();
             URL.revokeObjectURL(url);
+            
+            alert(`✅ Complete Report Exported!\n\n` +
+                `Cases: ${filteredCases.length}\n` +
+                `Collection: Rs ${totalCollection.toFixed(2)}\n` +
+                `Expenses: Rs ${totalExpenses.toFixed(2)}\n` +
+                `Net Profit: Rs ${netProfit.toFixed(2)}\n\n` +
+                `File: ${filename}.csv`);
         }
         
         window.onclick = function(event) {
