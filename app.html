@@ -191,26 +191,32 @@
             .invoice-form, .invoice-item, .stats-grid { grid-template-columns: 1fr; }
             .nav-tab { min-width: 70px; font-size: 11px; }
         }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>📱 Mobile Service Centre</h1>
-            <p style="font-size: 14px; margin-top: 5px;">Complete Management System <span id="cloudStatus" style="font-size: 12px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; margin-left: 10px;">🔥 Real-time Sync</span></p>
-            <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 10px;">
+            <p style="font-size: 14px; margin-top: 5px;">Complete Management System <span id="cloudStatus" style="font-size: 12px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; margin-left: 10px;">🔥 Real-time Sync</span> <span id="userRoleBadge" style="font-size: 11px; background: rgba(255,255,255,0.3); padding: 3px 8px; border-radius: 4px; margin-left: 5px;"></span></p>
+            <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; align-items: center;">
+                <span id="pendingApprovalsBadge" style="display: none; background: #dc3545; color: white; padding: 5px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="showPendingApprovalsModal()"></span>
                 <button onclick="location.reload()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 12px;">🔄 Refresh</button>
                 <button onclick="logout()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">🚪 Logout</button>
             </div>
         </div>
         
-        <div class="nav-tabs">
+        <div class="nav-tabs" id="navTabs">
             <button class="nav-tab active" onclick="switchTab('invoice')">🧾 Invoice</button>
             <button class="nav-tab" onclick="switchTab('sales')">💰 Sales</button>
             <button class="nav-tab" onclick="switchTab('realme-moto')">📱 Realme/Moto</button>
-            <button class="nav-tab" onclick="switchTab('creditdebit')">💳 Credit/Debit</button>
+            <button class="nav-tab" id="tabCreditDebit" onclick="switchTab('creditdebit')">💳 Credit/Debit</button>
             <button class="nav-tab" onclick="switchTab('inventory')">📦 Inventory</button>
-            <button class="nav-tab" onclick="switchTab('reports')">📊 Reports</button>
+            <button class="nav-tab" id="tabReports" onclick="switchTab('reports')">📊 Reports</button>
         </div>
         
         <div id="invoice" class="tab-content active">
@@ -830,6 +836,7 @@
             cloudSave('creditDebit', creditDebit);
             cloudSave('rmCases', rmCases);
             cloudSave('dailyExpenses', dailyExpenses);
+            cloudSave('pendingExpenses', pendingExpenses);
             cloudSave('settings', settings);
             cloudSave('invoiceCounter', invoiceCounter);
             syncUsersToCloud();
@@ -873,6 +880,14 @@
                 updateDailyStats();
             });
             
+            cloudListen('pendingExpenses', (data) => {
+                pendingExpenses = toArray(data);
+                localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
+                if(currentUserRole === 'admin') {
+                    showPendingApprovalsBadge();
+                }
+            });
+            
             cloudListen('settings', (data) => {
                 if(data) {
                     settings = data;
@@ -894,7 +909,9 @@
         let creditDebit = JSON.parse(localStorage.getItem('creditDebit')) || [];
         let rmCases = JSON.parse(localStorage.getItem('rmCases')) || [];
         let dailyExpenses = JSON.parse(localStorage.getItem('dailyExpenses')) || [];
+        let pendingExpenses = JSON.parse(localStorage.getItem('pendingExpenses')) || [];
         let invoiceCounter = parseInt(localStorage.getItem('invoiceCounter')) || 1;
+        let currentUserRole = localStorage.getItem('userRole') || 'admin';
         let settings = JSON.parse(localStorage.getItem('settings')) || {
             name: 'SMART CARE MOBILES',
             gst: 'APAVM5475G1ZF',
@@ -2368,49 +2385,6 @@
                 return;
             }
             
-            // Smart check: Warn if expense exceeds today's cash collection
-            const today = new Date().toISOString().split('T')[0];
-            const selectedDate = new Date(date).toISOString().split('T')[0];
-            
-            if(selectedDate === today) {
-                // Calculate today's cash collection
-                let todayCash = 0;
-                rmCases.forEach(c => {
-                    if(c.payments) {
-                        c.payments.forEach(p => {
-                            const payDate = new Date(p.date).toISOString().split('T')[0];
-                            if(payDate === today && p.mode !== 'Online') {
-                                todayCash += p.amount;
-                            }
-                        });
-                    }
-                });
-                
-                // Calculate existing expenses
-                let existingExpenses = 0;
-                dailyExpenses.forEach(e => {
-                    const expDate = new Date(e.date).toISOString().split('T')[0];
-                    if(expDate === today) {
-                        existingExpenses += e.amount;
-                    }
-                });
-                
-                const newTotal = existingExpenses + amount;
-                
-                if(newTotal > todayCash) {
-                    const confirm = window.confirm(
-                        `⚠️ WARNING!\n\n` +
-                        `Today's Cash Collection: Rs ${todayCash.toFixed(2)}\n` +
-                        `Total Expenses (with this): Rs ${newTotal.toFixed(2)}\n` +
-                        `Deficit: Rs ${(newTotal - todayCash).toFixed(2)}\n\n` +
-                        `Expenses will exceed cash available!\n\n` +
-                        `Continue anyway?`
-                    );
-                    
-                    if(!confirm) return;
-                }
-            }
-            
             const expense = {
                 id: Date.now(),
                 name,
@@ -2419,17 +2393,82 @@
                 createdDate: new Date().toISOString()
             };
             
-            dailyExpenses.push(expense);
-            localStorage.setItem('dailyExpenses', JSON.stringify(dailyExpenses));
-            cloudSave('dailyExpenses', dailyExpenses);
-            
-            // Reset form
-            document.getElementById('dailyExpenseName').value = '';
-            document.getElementById('dailyExpenseAmount').value = '';
-            document.getElementById('dailyExpenseDate').value = '';
-            
-            updateDailyStats();
-            alert(`✅ Expense Added!\n\n${name}: Rs ${amount.toFixed(2)}\nDate: ${new Date(date).toLocaleDateString('en-IN')}`);
+            // Check if employee or admin
+            if(currentUserRole === 'employee') {
+                // Employee - send for approval
+                const pendingExpense = {
+                    ...expense,
+                    requestedBy: localStorage.getItem('currentUser'),
+                    requestedAt: new Date().toISOString(),
+                    status: 'pending'
+                };
+                
+                pendingExpenses.push(pendingExpense);
+                localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
+                cloudSave('pendingExpenses', pendingExpenses);
+                
+                // Reset form
+                document.getElementById('dailyExpenseName').value = '';
+                document.getElementById('dailyExpenseAmount').value = '';
+                document.getElementById('dailyExpenseDate').value = '';
+                
+                alert(`🔔 Expense Request Sent to Admin!\n\n${name}: Rs ${amount.toFixed(2)}\n\nWaiting for approval...`);
+            } else {
+                // Admin - add directly with smart check
+                const today = new Date().toISOString().split('T')[0];
+                const selectedDate = new Date(date).toISOString().split('T')[0];
+                
+                if(selectedDate === today) {
+                    // Calculate today's cash collection
+                    let todayCash = 0;
+                    rmCases.forEach(c => {
+                        if(c.payments) {
+                            c.payments.forEach(p => {
+                                const payDate = new Date(p.date).toISOString().split('T')[0];
+                                if(payDate === today && p.mode !== 'Online') {
+                                    todayCash += p.amount;
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Calculate existing expenses
+                    let existingExpenses = 0;
+                    dailyExpenses.forEach(e => {
+                        const expDate = new Date(e.date).toISOString().split('T')[0];
+                        if(expDate === today) {
+                            existingExpenses += e.amount;
+                        }
+                    });
+                    
+                    const newTotal = existingExpenses + amount;
+                    
+                    if(newTotal > todayCash) {
+                        const confirmAdd = window.confirm(
+                            `⚠️ WARNING!\n\n` +
+                            `Today's Cash Collection: Rs ${todayCash.toFixed(2)}\n` +
+                            `Total Expenses (with this): Rs ${newTotal.toFixed(2)}\n` +
+                            `Deficit: Rs ${(newTotal - todayCash).toFixed(2)}\n\n` +
+                            `Expenses will exceed cash available!\n\n` +
+                            `Continue anyway?`
+                        );
+                        
+                        if(!confirmAdd) return;
+                    }
+                }
+                
+                dailyExpenses.push(expense);
+                localStorage.setItem('dailyExpenses', JSON.stringify(dailyExpenses));
+                cloudSave('dailyExpenses', dailyExpenses);
+                
+                // Reset form
+                document.getElementById('dailyExpenseName').value = '';
+                document.getElementById('dailyExpenseAmount').value = '';
+                document.getElementById('dailyExpenseDate').value = '';
+                
+                updateDailyStats();
+                alert(`✅ Expense Added!\n\n${name}: Rs ${amount.toFixed(2)}\nDate: ${new Date(date).toLocaleDateString('en-IN')}`);
+            }
         }
         
         function updateDailyStats() {
@@ -2867,6 +2906,217 @@
                 `Net Cash Balance: Rs ${netCashBalance.toFixed(2)}\n\n` +
                 `File: ${filename}.csv`);
         }
+        
+        // EMPLOYEE ROLE & APPROVAL SYSTEM
+        function initializeUIBasedOnRole() {
+            const role = currentUserRole;
+            const username = localStorage.getItem('currentUser') || 'admin';
+            
+            // Show role badge
+            const roleBadge = document.getElementById('userRoleBadge');
+            if(roleBadge) {
+                roleBadge.textContent = role === 'admin' ? '👨‍💼 Admin' : '👨‍💻 Employee';
+                roleBadge.style.background = role === 'admin' ? 'rgba(40,167,69,0.3)' : 'rgba(23,162,184,0.3)';
+            }
+            
+            if(role === 'employee') {
+                // Hide admin-only tabs
+                const tabCreditDebit = document.getElementById('tabCreditDebit');
+                const tabReports = document.getElementById('tabReports');
+                if(tabCreditDebit) tabCreditDebit.style.display = 'none';
+                if(tabReports) tabReports.style.display = 'none';
+                
+                // Hide all delete buttons
+                setTimeout(() => {
+                    document.querySelectorAll('.btn-danger').forEach(btn => {
+                        const text = btn.textContent.toLowerCase();
+                        if(text.includes('delete') || text.includes('del') || text.includes('🗑️')) {
+                            btn.style.display = 'none';
+                        }
+                    });
+                    
+                    // Hide export buttons
+                    document.querySelectorAll('.btn-success').forEach(btn => {
+                        const text = btn.textContent.toLowerCase();
+                        if(text.includes('export')) {
+                            btn.style.display = 'none';
+                        }
+                    });
+                    
+                    // Change expense button text
+                    const expenseButtons = document.querySelectorAll('button');
+                    expenseButtons.forEach(btn => {
+                        if(btn.textContent.includes('Add Expense')) {
+                            btn.textContent = '🔔 Request Approval';
+                            btn.style.background = '#17a2b8';
+                        }
+                    });
+                }, 500);
+            } else {
+                // Admin - show pending approvals badge
+                showPendingApprovalsBadge();
+            }
+        }
+        
+        function showPendingApprovalsBadge() {
+            const pending = pendingExpenses.filter(e => e.status === 'pending');
+            const badge = document.getElementById('pendingApprovalsBadge');
+            
+            if(badge && pending.length > 0) {
+                badge.textContent = `🔔 ${pending.length} Pending`;
+                badge.style.display = 'block';
+                
+                // Pulse animation
+                badge.style.animation = 'pulse 2s infinite';
+            } else if(badge) {
+                badge.style.display = 'none';
+            }
+        }
+        
+        function showPendingApprovalsModal() {
+            const pending = pendingExpenses.filter(e => e.status === 'pending');
+            
+            if(pending.length === 0) {
+                alert('✅ No pending approvals!');
+                return;
+            }
+            
+            let html = '<div style="max-height: 400px; overflow-y: auto;">';
+            
+            pending.forEach(exp => {
+                const date = new Date(exp.requestedAt).toLocaleString('en-IN');
+                html += `
+                    <div style="background: #f8f9fa; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <div>
+                                <strong style="font-size: 16px;">${exp.name}</strong>
+                                <div style="font-size: 12px; color: #666; margin-top: 3px;">
+                                    Requested by: ${exp.requestedBy} | ${date}
+                                </div>
+                            </div>
+                            <div style="font-size: 20px; font-weight: 700; color: #dc3545;">
+                                Rs ${exp.amount.toFixed(2)}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="approveExpense(${exp.id})" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                ✅ Approve
+                            </button>
+                            <button onclick="rejectExpense(${exp.id})" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                ❌ Reject
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            const modal = document.createElement('div');
+            modal.id = 'approvalsModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; max-width: 600px; width: 90%; max-height: 80vh; overflow: hidden; border-radius: 12px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0; color: #333;">🔔 Pending Expense Approvals</h3>
+                        <button onclick="document.getElementById('approvalsModal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+                    </div>
+                    ${html}
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        function approveExpense(id) {
+            const expense = pendingExpenses.find(e => e.id === id);
+            if(!expense) return;
+            
+            // Add to daily expenses
+            const approved = {
+                id: expense.id,
+                name: expense.name,
+                amount: expense.amount,
+                date: expense.date,
+                createdDate: new Date().toISOString(),
+                approvedBy: localStorage.getItem('currentUser'),
+                approvedAt: new Date().toISOString()
+            };
+            
+            dailyExpenses.push(approved);
+            
+            // Remove from pending
+            pendingExpenses = pendingExpenses.filter(e => e.id !== id);
+            
+            // Save both
+            localStorage.setItem('dailyExpenses', JSON.stringify(dailyExpenses));
+            localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
+            cloudSave('dailyExpenses', dailyExpenses);
+            cloudSave('pendingExpenses', pendingExpenses);
+            
+            updateDailyStats();
+            showPendingApprovalsBadge();
+            
+            // Close modal if no more pending
+            const remaining = pendingExpenses.filter(e => e.status === 'pending');
+            if(remaining.length === 0) {
+                const modal = document.getElementById('approvalsModal');
+                if(modal) modal.remove();
+            } else {
+                // Refresh modal
+                const modal = document.getElementById('approvalsModal');
+                if(modal) modal.remove();
+                showPendingApprovalsModal();
+            }
+            
+            alert(`✅ Expense Approved!\n\n${expense.name}: Rs ${expense.amount.toFixed(2)}\n\nAdded to daily expenses.`);
+        }
+        
+        function rejectExpense(id) {
+            const expense = pendingExpenses.find(e => e.id === id);
+            if(!expense) return;
+            
+            if(!confirm(`Reject this expense?\n\n${expense.name}: Rs ${expense.amount.toFixed(2)}`)) {
+                return;
+            }
+            
+            pendingExpenses = pendingExpenses.filter(e => e.id !== id);
+            localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
+            cloudSave('pendingExpenses', pendingExpenses);
+            
+            showPendingApprovalsBadge();
+            
+            // Close modal if no more pending
+            const remaining = pendingExpenses.filter(e => e.status === 'pending');
+            if(remaining.length === 0) {
+                const modal = document.getElementById('approvalsModal');
+                if(modal) modal.remove();
+            } else {
+                // Refresh modal
+                const modal = document.getElementById('approvalsModal');
+                if(modal) modal.remove();
+                showPendingApprovalsModal();
+            }
+            
+            alert('❌ Expense Rejected!');
+        }
+        
+        // Initialize role-based UI on load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(initializeUIBasedOnRole, 1000);
+        });
         
         window.onclick = function(event) {
             if (event.target == document.getElementById('invoiceModal')) closeModal();
