@@ -2926,32 +2926,49 @@
                 if(tabCreditDebit) tabCreditDebit.style.display = 'none';
                 if(tabReports) tabReports.style.display = 'none';
                 
-                // Hide all delete buttons
-                setTimeout(() => {
-                    document.querySelectorAll('.btn-danger').forEach(btn => {
+                // Continuously hide delete/export buttons
+                const hideRestrictedButtons = () => {
+                    // Hide all delete buttons
+                    document.querySelectorAll('button').forEach(btn => {
                         const text = btn.textContent.toLowerCase();
                         if(text.includes('delete') || text.includes('del') || text.includes('🗑️')) {
                             btn.style.display = 'none';
+                            btn.disabled = true;
+                            btn.onclick = (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                alert('❌ Access Denied! Only Admin can delete.');
+                                return false;
+                            };
                         }
-                    });
-                    
-                    // Hide export buttons
-                    document.querySelectorAll('.btn-success').forEach(btn => {
-                        const text = btn.textContent.toLowerCase();
+                        
+                        // Hide export buttons
                         if(text.includes('export')) {
                             btn.style.display = 'none';
+                            btn.disabled = true;
                         }
-                    });
-                    
-                    // Change expense button text
-                    const expenseButtons = document.querySelectorAll('button');
-                    expenseButtons.forEach(btn => {
+                        
+                        // Change expense button text
                         if(btn.textContent.includes('Add Expense')) {
                             btn.textContent = '🔔 Request Approval';
                             btn.style.background = '#17a2b8';
                         }
                     });
-                }, 500);
+                };
+                
+                // Run immediately
+                hideRestrictedButtons();
+                
+                // Run every 500ms to catch dynamically loaded buttons
+                setInterval(hideRestrictedButtons, 500);
+                
+                // Override delete functions
+                window.deleteInvoice = () => { alert('❌ Access Denied! Only Admin can delete.'); };
+                window.deleteRMCase = () => { alert('❌ Access Denied! Only Admin can delete.'); };
+                window.deleteDailyExpense = () => { alert('❌ Access Denied! Only Admin can delete.'); };
+                window.deleteInventoryItem = () => { alert('❌ Access Denied! Only Admin can delete.'); };
+                window.deleteCreditDebit = () => { alert('❌ Access Denied! Only Admin can delete.'); };
+                
             } else {
                 // Admin - show pending approvals badge
                 showPendingApprovalsBadge();
