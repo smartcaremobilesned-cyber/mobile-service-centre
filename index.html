@@ -189,9 +189,12 @@
             } else {
                 // Initialize default user
                 const defaultUsers = {
-                    'admin': { password: 'admin123', role: 'admin' }
+                    'admin': { password: 'admin123', role: 'admin' },
+                    'employee': { password: 'emp123', role: 'employee' }
                 };
                 localStorage.setItem('users', JSON.stringify(defaultUsers));
+                database.ref('users').set(defaultUsers);
+                console.log('✅ Default users created (admin + employee)');
             }
         });
         
@@ -216,10 +219,8 @@
             
             // Get stored credentials (loaded from cloud)
             const storedUsers = JSON.parse(localStorage.getItem('users')) || {
-                'admin': {
-                    password: 'admin123',
-                    role: 'admin'
-                }
+                'admin': { password: 'admin123', role: 'admin' },
+                'employee': { password: 'emp123', role: 'employee' }
             };
             
             // Validate credentials
