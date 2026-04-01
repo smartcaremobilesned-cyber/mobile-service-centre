@@ -3399,7 +3399,69 @@
             const expense = pendingExpenses.find(e => e.id === id);
             if(!expense) return;
             
-            // Add to daily expenses
+            // Check if this is a PW Order cash approval
+            if(expense.type === 'PW Order Cash' && expense.orderId) {
+                const order = pwOrders.find(o => o.id === expense.orderId);
+                if(order && order.pendingCashApproval) {
+                    // Add payment to order
+                    const payment = {
+                        id: Date.now(),
+                        amount: expense.amount,
+                        mode: 'Cash',
+                        type: 'Advance (Approved)',
+                        date: new Date().toISOString(),
+                        approvedBy: localStorage.getItem('currentUser'),
+                        utrNumber: null
+                    };
+                    
+                    order.payments.push(payment);
+                    order.paidAmount += expense.amount;
+                    order.advanceAmount = expense.amount;
+                    order.balance = order.totalAmount - order.paidAmount;
+                    
+                    if(order.balance === 0) {
+                        order.status = 'Paid';
+                    } else {
+                        order.status = 'Pending';
+                    }
+                    
+                    // Remove pending approval from order
+                    order.pendingCashApproval.status = 'approved';
+                    order.pendingCashApproval.approvedBy = localStorage.getItem('currentUser');
+                    order.pendingCashApproval.approvedAt = new Date().toISOString();
+                    
+                    // Save order
+                    localStorage.setItem('pwOrders', JSON.stringify(pwOrders));
+                    cloudSave('pwOrders', pwOrders);
+                    
+                    // Remove from pending expenses
+                    pendingExpenses = pendingExpenses.filter(e => e.id !== id);
+                    localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
+                    cloudSave('pendingExpenses', pendingExpenses);
+                    
+                    // Refresh displays
+                    loadPWOrders();
+                    calculatePendingExpenses();
+                    showPendingApprovalsBadge();
+                    
+                    // Close modal if no more pending
+                    const remaining = pendingExpenses.filter(e => e.status === 'pending');
+                    if(remaining.length === 0) {
+                        const modal = document.getElementById('approvalsModal');
+                        if(modal) modal.remove();
+                    } else {
+                        // Refresh modal
+                        const modal = document.getElementById('approvalsModal');
+                        if(modal) modal.remove();
+                        showPendingApprovalsModal();
+                    }
+                    
+                    alert(`✅ PW Order Cash Payment Approved!\n\nCustomer: ${expense.customerName}\nModel: ${expense.model}\nAmount: Rs ${expense.amount.toFixed(2)}\n\nPayment added to order.`);
+                    return;
+                }
+            }
+            
+            // Regular expense approval
             const approved = {
                 id: expense.id,
                 name: expense.name,
@@ -3422,6 +3484,7 @@
             cloudSave('pendingExpenses', pendingExpenses);
             
             updateDailyStats();
+            calculatePendingExpenses();
             showPendingApprovalsBadge();
             
             // Close modal if no more pending
@@ -3443,11 +3506,50 @@
             const expense = pendingExpenses.find(e => e.id === id);
             if(!expense) return;
             
-            if(!confirm(`Reject this expense?\n\n${expense.name}: Rs ${expense.amount.toFixed(2)}`)) {
+            if(!confirm(`Reject this ${expense.type === 'PW Order Cash' ? 'PW order cash payment' : 'expense'}?\n\n${expense.name}: Rs ${expense.amount.toFixed(2)}`)) {
                 return;
             }
             
+            // Check if PW Order cash approval
+            if(expense.type === 'PW Order Cash' && expense.orderId) {
+                const order = pwOrders.find(o => o.id === expense.orderId);
+                if(order && order.pendingCashApproval) {
+                    // Mark as rejected
+                    order.pendingCashApproval.status = 'rejected';
+                    order.pendingCashApproval.rejectedBy = localStorage.getItem('currentUser');
+                    order.pendingCashApproval.rejectedAt = new Date().toISOString();
+                    
+                    // Save order
+                    localStorage.setItem('pwOrders', JSON.stringify(pwOrders));
+                    cloudSave('pwOrders', pwOrders);
+                    
+                    // Refresh display
+                    loadPWOrders();
+                }
+            }
+            
+            // Remove from pending
             pendingExpenses = pendingExpenses.filter(e => e.id !== id);
+            localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
+            cloudSave('pendingExpenses', pendingExpenses);
+            
+            calculatePendingExpenses();
+            showPendingApprovalsBadge();
+            
+            // Close modal if no more pending
+            const remaining = pendingExpenses.filter(e => e.status === 'pending');
+            if(remaining.length === 0) {
+                const modal = document.getElementById('approvalsModal');
+                if(modal) modal.remove();
+            } else {
+                // Refresh modal
+                const modal = document.getElementById('approvalsModal');
+                if(modal) modal.remove();
+                showPendingApprovalsModal();
+            }
+            
+            alert(`❌ ${expense.type === 'PW Order Cash' ? 'PW order cash payment' : 'Expense'} Rejected!\n\n${expense.name}: Rs ${expense.amount.toFixed(2)}`);
+        }
             localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
             cloudSave('pendingExpenses', pendingExpenses);
             
@@ -3499,6 +3601,13 @@
         }
         
         function openAddPWOrderModal() {
+            // Build inventory model list for autocomplete
+            let modelOptions = '';
+            const uniqueModels = [...new Set(inventory.map(i => i.name))];
+            uniqueModels.forEach(model => {
+                modelOptions += `<option value="${model}">`;
+            });
+            
             const modal = document.createElement('div');
             modal.id = 'pwOrderModal';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; overflow-y: auto;';
@@ -3532,10 +3641,13 @@
                         </div>
                         
                         <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">Model *</label>
-                            <input type="text" id="pwModel" required 
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">Model * <span style="color: #999; font-size: 11px;">(Select from inventory)</span></label>
+                            <input type="text" id="pwModel" list="inventoryModels" required 
                                 style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;"
-                                placeholder="e.g., Realme 11 Pro">
+                                placeholder="Type to see inventory models">
+                            <datalist id="inventoryModels">
+                                ${modelOptions}
+                            </datalist>
                         </div>
                         
                         <div>
@@ -3563,11 +3675,18 @@
                         
                         <div>
                             <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">Payment Mode *</label>
-                            <select id="pwPaymentMode" required 
+                            <select id="pwPaymentMode" required onchange="togglePWUTRField()"
                                 style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
                                 <option value="Cash">Cash</option>
                                 <option value="Online">Online</option>
                             </select>
+                        </div>
+                        
+                        <div id="pwUTRField" style="display: none;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">UTR Number *</label>
+                            <input type="text" id="pwUTRNumber" 
+                                style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;"
+                                placeholder="Enter UTR/Reference number">
                         </div>
                     </div>
                     
@@ -3587,6 +3706,21 @@
             document.body.appendChild(modal);
         }
         
+        function togglePWUTRField() {
+            const paymentMode = document.getElementById('pwPaymentMode').value;
+            const utrField = document.getElementById('pwUTRField');
+            const utrInput = document.getElementById('pwUTRNumber');
+            
+            if(paymentMode === 'Online') {
+                utrField.style.display = 'block';
+                utrInput.required = true;
+            } else {
+                utrField.style.display = 'none';
+                utrInput.required = false;
+                utrInput.value = '';
+            }
+        }
+        
         function closePWOrderModal() {
             const modal = document.getElementById('pwOrderModal');
             if(modal) modal.remove();
@@ -3601,6 +3735,7 @@
             const totalAmount = parseFloat(document.getElementById('pwTotalAmount').value) || 0;
             const advanceAmount = parseFloat(document.getElementById('pwAdvanceAmount').value) || 0;
             const paymentMode = document.getElementById('pwPaymentMode').value;
+            const utrNumber = document.getElementById('pwUTRNumber')?.value.trim() || '';
             
             if(!customerName || !mobile || !model || totalAmount <= 0) {
                 alert('❌ Please fill all required fields!');
@@ -3617,6 +3752,22 @@
                 return;
             }
             
+            if(paymentMode === 'Online' && advanceAmount > 0 && !utrNumber) {
+                alert('❌ UTR Number is required for online payments!');
+                return;
+            }
+            
+            // Check inventory availability
+            const inventoryItem = inventory.find(item => item.name.toLowerCase() === model.toLowerCase());
+            if(inventoryItem && inventoryItem.quantity < 1) {
+                if(!confirm(`⚠️ Low inventory warning!\n\nModel: ${model}\nAvailable: ${inventoryItem.quantity}\n\nContinue anyway?`)) {
+                    return;
+                }
+            }
+            
+            // Check if employee making cash payment
+            const needsApproval = (currentUserRole === 'employee' && paymentMode === 'Cash' && advanceAmount > 0);
+            
             const order = {
                 id: Date.now(),
                 customerName,
@@ -3625,21 +3776,54 @@
                 model,
                 brand,
                 totalAmount,
-                advanceAmount,
-                paidAmount: advanceAmount,
-                balance: totalAmount - advanceAmount,
-                status: advanceAmount >= totalAmount ? 'Paid' : 'Pending',
-                payments: advanceAmount > 0 ? [{
-                    id: Date.now(),
+                advanceAmount: needsApproval ? 0 : advanceAmount, // Set to 0 if pending approval
+                paidAmount: needsApproval ? 0 : advanceAmount,
+                balance: needsApproval ? totalAmount : (totalAmount - advanceAmount),
+                status: needsApproval ? 'Pending' : (advanceAmount >= totalAmount ? 'Paid' : 'Pending'),
+                payments: [],
+                pendingCashApproval: needsApproval ? {
                     amount: advanceAmount,
-                    mode: paymentMode,
-                    type: 'Advance',
-                    date: new Date().toISOString()
-                }] : [],
+                    requestedBy: localStorage.getItem('currentUser') || 'employee',
+                    requestedAt: new Date().toISOString(),
+                    status: 'pending'
+                } : null,
                 createdDate: new Date().toISOString(),
                 invoiceGenerated: false,
                 invoiceId: null
             };
+            
+            // If no approval needed, add payment directly
+            if(!needsApproval && advanceAmount > 0) {
+                order.payments.push({
+                    id: Date.now(),
+                    amount: advanceAmount,
+                    mode: paymentMode,
+                    type: 'Advance',
+                    date: new Date().toISOString(),
+                    utrNumber: utrNumber || null
+                });
+            }
+            
+            // If employee cash payment, create pending expense approval
+            if(needsApproval) {
+                const approval = {
+                    id: Date.now(),
+                    type: 'PW Order Cash',
+                    name: `PW Order - ${customerName} (${model})`,
+                    amount: advanceAmount,
+                    orderId: order.id,
+                    customerName: customerName,
+                    model: model,
+                    date: new Date().toISOString(),
+                    requestedBy: localStorage.getItem('currentUser') || 'employee',
+                    requestedAt: new Date().toISOString(),
+                    status: 'pending'
+                };
+                
+                pendingExpenses.push(approval);
+                localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
+                cloudSave('pendingExpenses', pendingExpenses);
+            }
             
             pwOrders.push(order);
             localStorage.setItem('pwOrders', JSON.stringify(pwOrders));
@@ -3648,7 +3832,16 @@
             closePWOrderModal();
             loadPWOrders();
             
-            alert(`✅ Order Created Successfully!\n\nCustomer: ${customerName}\nTotal: Rs ${totalAmount.toFixed(2)}\nAdvance: Rs ${advanceAmount.toFixed(2)}\nBalance: Rs ${order.balance.toFixed(2)}`);
+            if(needsApproval) {
+                alert(`✅ Order Created!\n\nCustomer: ${customerName}\nTotal: Rs ${totalAmount.toFixed(2)}\n\n⏳ Cash payment of Rs ${advanceAmount.toFixed(2)} sent for Admin approval.\n\nOrder will be updated once approved.`);
+            } else {
+                alert(`✅ Order Created Successfully!\n\nCustomer: ${customerName}\nTotal: Rs ${totalAmount.toFixed(2)}\nAdvance: Rs ${advanceAmount.toFixed(2)}\nBalance: Rs ${order.balance.toFixed(2)}${utrNumber ? '\nUTR: ' + utrNumber : ''}`);
+            }
+            
+            // Refresh pending stats if admin
+            if(currentUserRole === 'admin') {
+                calculatePendingExpenses();
+            }
         }
         
         function loadPWOrders() {
@@ -3680,7 +3873,13 @@
                 
                 let statusBadge = '';
                 let statusColor = '';
-                if(order.status === 'Pending') {
+                
+                // Check if has pending cash approval
+                if(order.pendingCashApproval && order.pendingCashApproval.status === 'pending') {
+                    statusBadge = '⏳ Cash Pending Approval';
+                    statusColor = '#ff9800';
+                    row.style.background = '#fff3cd30';
+                } else if(order.status === 'Pending') {
                     statusBadge = '⏳ Pending';
                     statusColor = '#ffc107';
                     row.style.background = '#fff3cd10';
@@ -3695,6 +3894,7 @@
                 }
                 
                 const canDelete = currentUserRole === 'admin';
+                const hasPendingApproval = order.pendingCashApproval && order.pendingCashApproval.status === 'pending';
                 
                 row.innerHTML = `
                     <td style="padding: 12px;">${date}</td>
@@ -3720,13 +3920,13 @@
                                 style="padding: 6px 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">
                                 👁️ View
                             </button>
-                            ${order.balance > 0 && order.status !== 'Invoiced' ? `
+                            ${!hasPendingApproval && order.balance > 0 && order.status !== 'Invoiced' ? `
                                 <button onclick="addPaymentToPWOrder(${order.id})" 
                                     style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">
                                     💰 +Pay
                                 </button>
                             ` : ''}
-                            ${order.balance === 0 && !order.invoiceGenerated ? `
+                            ${!hasPendingApproval && order.balance === 0 && !order.invoiceGenerated ? `
                                 <button onclick="movePWOrderToInvoice(${order.id})" 
                                     style="padding: 6px 12px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">
                                     📄 Invoice
@@ -3864,12 +4064,23 @@
             
             const mode = confirm('Payment mode?\n\nOK = Cash\nCancel = Online') ? 'Cash' : 'Online';
             
+            let utrNumber = null;
+            if(mode === 'Online') {
+                utrNumber = prompt('Enter UTR/Reference Number:');
+                if(!utrNumber || utrNumber.trim() === '') {
+                    alert('❌ UTR Number is required for online payments!');
+                    return;
+                }
+                utrNumber = utrNumber.trim();
+            }
+            
             const payment = {
                 id: Date.now(),
                 amount,
                 mode,
                 type: amount === order.balance ? 'Final Payment' : 'Part Payment',
-                date: new Date().toISOString()
+                date: new Date().toISOString(),
+                utrNumber: utrNumber
             };
             
             order.payments.push(payment);
@@ -3884,7 +4095,7 @@
             cloudSave('pwOrders', pwOrders);
             loadPWOrders();
             
-            alert(`✅ Payment Added Successfully!\n\nAmount: Rs ${amount.toFixed(2)}\nMode: ${mode}\nRemaining Balance: Rs ${order.balance.toFixed(2)}`);
+            alert(`✅ Payment Added Successfully!\n\nAmount: Rs ${amount.toFixed(2)}\nMode: ${mode}${utrNumber ? '\nUTR: ' + utrNumber : ''}\nRemaining Balance: Rs ${order.balance.toFixed(2)}`);
         }
         
         function movePWOrderToInvoice(orderId) {
@@ -3932,12 +4143,25 @@
             order.invoiceGenerated = true;
             order.invoiceId = invoice.id;
             
+            // Auto-debit inventory if model exists
+            const inventoryItem = inventory.find(item => item.name.toLowerCase() === order.model.toLowerCase());
+            if(inventoryItem && inventoryItem.quantity > 0) {
+                inventoryItem.quantity -= 1;
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+                cloudSave('inventory', inventory);
+            }
+            
             localStorage.setItem('pwOrders', JSON.stringify(pwOrders));
             cloudSave('pwOrders', pwOrders);
             
             loadPWOrders();
             
-            alert(`✅ Invoice Generated Successfully!\n\nInvoice #${invoice.id}\nCustomer: ${order.customerName}\nAmount: Rs ${order.totalAmount.toFixed(2)}\n\nPayments already recorded in order history.\nNo duplicate entries in Credit/Debit.`);
+            // Show success and ask to print
+            if(confirm(`✅ Invoice #${invoice.id} Generated Successfully!\n\nCustomer: ${order.customerName}\nAmount: Rs ${order.totalAmount.toFixed(2)}\n\n🖨️ Print invoice now?`)) {
+                printInvoice(invoice.id);
+            } else {
+                alert(`Invoice saved! You can print it later from Sales tab.`);
+            }
         }
         
         function deletePWOrder(orderId) {
