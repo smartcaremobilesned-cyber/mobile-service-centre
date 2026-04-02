@@ -199,27 +199,6 @@
     </style>
 </head>
 <body>
-
-    <!-- LOGIN SCREEN - Self contained, no index.html needed -->
-    <div id="loginScreen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); z-index:9999; align-items:center; justify-content:center;">
-        <div style="background:white; border-radius:16px; padding:40px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); text-align:center;">
-            <div style="font-size:50px; margin-bottom:10px;">📱</div>
-            <h2 style="color:#667eea; margin-bottom:5px;">Mobile Service Centre</h2>
-            <p style="color:#999; font-size:13px; margin-bottom:25px;">Smart Care Mobiles — Login</p>
-            <div style="text-align:left; margin-bottom:15px;">
-                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:5px;">Username</label>
-                <input id="loginUsername" type="text" placeholder="Enter username" style="width:100%;padding:12px;border:2px solid #dee2e6;border-radius:8px;font-size:14px;outline:none;" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
-            </div>
-            <div style="text-align:left; margin-bottom:20px;">
-                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:5px;">Password</label>
-                <input id="loginPassword" type="password" placeholder="Enter password" style="width:100%;padding:12px;border:2px solid #dee2e6;border-radius:8px;font-size:14px;outline:none;" onkeydown="if(event.key==='Enter')doLogin()">
-            </div>
-            <div id="loginError" style="display:none; background:#f8d7da; color:#721c24; padding:10px; border-radius:6px; margin-bottom:15px; font-size:13px;"></div>
-            <button onclick="doLogin()" style="width:100%;padding:14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;">🔐 Login</button>
-            <p style="color:#999; font-size:11px; margin-top:15px;">Default: admin / admin123</p>
-        </div>
-    </div>
-
     <div class="container">
         <div class="header">
             <h1>📱 Mobile Service Centre</h1>
@@ -999,21 +978,12 @@
                 .catch(err => console.error('❌ Cloud load error:', key, err));
         }
         
-        // Debounce utility - prevents rapid-fire re-renders
-        const debounceTimers = {};
-        function debounce(key, fn, delay = 300) {
-            clearTimeout(debounceTimers[key]);
-            debounceTimers[key] = setTimeout(fn, delay);
-        }
-
         // Real-time listener - auto updates when data changes
         function cloudListen(key, callback) {
             db.ref(SHOP + '/' + key).on('value', snap => {
                 const val = snap.val();
-                debounce('listen_' + key, () => {
-                    callback(val);
-                    console.log('🔄 Auto-synced:', key);
-                }, 400);
+                callback(val);
+                console.log('🔄 Auto-synced:', key);
             });
         }
         
@@ -1029,12 +999,6 @@
                 const users = snap.val();
                 if(users) {
                     localStorage.setItem('users', JSON.stringify(users));
-                    // Update role if user is logged in
-                    const currentUser = localStorage.getItem('currentUser');
-                    if(currentUser && users[currentUser]) {
-                        currentUserRole = users[currentUser].role || 'user';
-                        localStorage.setItem('userRole', currentUserRole);
-                    }
                 } else {
                     const def = { 'admin': { password: 'admin123', role: 'admin' }};
                     db.ref('users').set(def);
@@ -1135,6 +1099,7 @@
         let pwOrders = JSON.parse(localStorage.getItem('pwOrders')) || [];
         let invoiceCounter = parseInt(localStorage.getItem('invoiceCounter')) || 1;
         let currentUserRole = localStorage.getItem('userRole') || 'admin';
+        let currentTab = 'invoice'; // Current active tab
         let settings = JSON.parse(localStorage.getItem('settings')) || {
             name: 'SMART CARE MOBILES',
             gst: 'APAVM5475G1ZF',
@@ -1146,90 +1111,41 @@
         let autoBackupEnabled = localStorage.getItem('autoBackupEnabled') === 'true';
         let lastBackupDate = localStorage.getItem('lastBackupDate');
         let dataChanged = false;
-        let currentTab = 'invoice';
-
-        // =============================================
-        // SELF-CONTAINED LOGIN SYSTEM (no index.html)
-        // =============================================
-        function checkSession() {
-            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-            if(!isLoggedIn) {
-                showLoginScreen();
-                return false;
-            }
-            // Auto-logout after 8 hours
-            const loginTime = localStorage.getItem('loginTime');
-            if(loginTime) {
-                const elapsed = Date.now() - new Date(loginTime).getTime();
-                if(elapsed / (1000 * 60 * 60) > 8) {
-                    localStorage.removeItem('isLoggedIn');
-                    showLoginScreen();
-                    return false;
-                }
-            }
-            return true;
+        
+        // Session check
+        if(localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'index.html';
         }
-
-        function showLoginScreen() {
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.querySelector('.container').style.display = 'none';
-            setTimeout(() => document.getElementById('loginUsername').focus(), 100);
-        }
-
-        function hideLoginScreen() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.querySelector('.container').style.display = 'block';
-        }
-
-        function doLogin() {
-            const username = document.getElementById('loginUsername').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            const errDiv = document.getElementById('loginError');
-            errDiv.style.display = 'none';
-
-            if(!username || !password) {
-                errDiv.textContent = '⚠️ Username aur password dono zaroori hain!';
-                errDiv.style.display = 'block';
-                return;
+        
+        // Auto-logout after 8 hours
+        const loginTime = localStorage.getItem('loginTime');
+        if(loginTime) {
+            const elapsed = Date.now() - new Date(loginTime).getTime();
+            const hours = elapsed / (1000 * 60 * 60);
+            if(hours > 8) {
+                logout();
             }
-
-            // Load users from localStorage or use default
-            const users = JSON.parse(localStorage.getItem('users')) || { 'admin': { password: 'admin123', role: 'admin' } };
-            const user = users[username];
-
-            if(!user || user.password !== password) {
-                errDiv.textContent = '❌ Galat username ya password!';
-                errDiv.style.display = 'block';
-                document.getElementById('loginPassword').value = '';
-                return;
-            }
-
-            // Login success
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('currentUser', username);
-            localStorage.setItem('userRole', user.role || 'user');
-            localStorage.setItem('loginTime', new Date().toISOString());
-            currentUserRole = user.role || 'user';
-
-            hideLoginScreen();
-            initApp();
         }
-
+        
         function logout() {
             if(confirm('Are you sure you want to logout?')) {
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('currentUser');
                 localStorage.removeItem('userRole');
                 localStorage.removeItem('loginTime');
-                showLoginScreen();
-                document.getElementById('loginUsername').value = '';
-                document.getElementById('loginPassword').value = '';
+                window.location.href = 'index.html';
             }
         }
         
-        function initApp() {
-            currentUserRole = localStorage.getItem('userRole') || 'admin';
+        window.onload = function() {
+            // Set invoice tab as active by default
+            document.getElementById('invoice').classList.add('active');
+            document.querySelector('.nav-tab').classList.add('active');
+            
+            // Load from cloud first, then from localStorage
             loadAllFromCloud();
+            
+            // Then load UI
             setTimeout(() => {
                 loadSales();
                 loadInventory();
@@ -1239,14 +1155,7 @@
                 updateReports();
                 addItem();
                 initAutoBackup();
-                initializeUIBasedOnRole();
-            }, 1500);
-        }
-
-        window.onload = function() {
-            if(checkSession()) {
-                initApp();
-            }
+            }, 1000); // Wait 1 second for cloud data
         };
         
         function initAutoBackup() {
@@ -4372,6 +4281,11 @@
         // ============================================
         // END PW ORDERS FUNCTIONS
         // ============================================
+        
+        // Initialize role-based UI on load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(initializeUIBasedOnRole, 1000);
+        });
         
         window.onclick = function(event) {
             if (event.target == document.getElementById('invoiceModal')) closeModal();
