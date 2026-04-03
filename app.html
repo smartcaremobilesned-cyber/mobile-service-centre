@@ -1138,9 +1138,12 @@
         }
         
         window.onload = function() {
+            console.log('🚀 Page loaded - initializing...');
+            
             // Set invoice tab as active by default
             document.getElementById('invoice').classList.add('active');
             document.querySelector('.nav-tab').classList.add('active');
+            console.log('✅ Invoice tab set as active');
             
             // Load from cloud first, then from localStorage
             loadAllFromCloud();
@@ -1155,6 +1158,7 @@
                 updateReports();
                 addItem();
                 initAutoBackup();
+                console.log('✅ All UI loaded successfully');
             }, 1000); // Wait 1 second for cloud data
         };
         
@@ -1277,6 +1281,9 @@
         }
         
         function switchTab(tabName, evt) {
+            console.log('🔄 switchTab called:', tabName);
+            console.log('Event received:', evt);
+            
             currentTab = tabName;
             
             // Remove active from all tabs and buttons
@@ -1287,11 +1294,17 @@
             const tabElement = document.getElementById(tabName);
             if(tabElement) {
                 tabElement.classList.add('active');
+                console.log('✅ Tab activated:', tabName);
+            } else {
+                console.error('❌ Tab element not found:', tabName);
             }
             
             // Add active to clicked button
             if(evt && evt.target) {
                 evt.target.classList.add('active');
+                console.log('✅ Button activated');
+            } else {
+                console.error('❌ Event or target missing');
             }
             
             // Load data for each tab
@@ -1301,6 +1314,8 @@
             if(tabName === 'inventory') loadInventory();
             if(tabName === 'pw-orders') loadPWOrders();
             if(tabName === 'reports') { loadSettings(); updateReports(); }
+            
+            console.log('✅ switchTab completed');
         }
         
         function addItem() {
