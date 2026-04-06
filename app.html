@@ -216,6 +216,7 @@
             <button class="nav-tab" onclick="switchTab('realme-moto', event)">📱 Realme/Moto</button>
             <button class="nav-tab" id="tabCreditDebit" onclick="switchTab('creditdebit', event)">💳 Credit/Debit</button>
             <button class="nav-tab" onclick="switchTab('inventory', event)">📦 Inventory</button>
+            <button class="nav-tab" id="tabPartOrders" onclick="switchTab('partorders', event)">🔧 Part Orders</button>
             <button class="nav-tab" id="tabReports" onclick="switchTab('reports', event)">📊 Reports</button>
         </div>
         
@@ -695,6 +696,111 @@
             </table>
         </div>
         
+        <!-- PART ORDERS TAB -->
+        <div id="partorders" class="tab-content">
+            <h2>🔧 Part Orders Management</h2>
+
+            <div class="stats-grid">
+                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <h3 style="font-size:14px;">Pending Orders</h3>
+                    <div class="value" id="poStatPending">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <h3 style="font-size:14px;">Part Received</h3>
+                    <div class="value" id="poStatReceived">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                    <h3 style="font-size:14px;">Invoiced</h3>
+                    <div class="value" id="poStatInvoiced">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                    <h3 style="font-size:14px;">Total Advance</h3>
+                    <div class="value" id="poStatAdvance">₹0</div>
+                </div>
+            </div>
+
+            <!-- New Part Order Form -->
+            <div style="background:#e7f3ff; padding:18px; border-radius:10px; margin-bottom:18px; border-left:4px solid #667eea;">
+                <h3 style="color:#007bff; margin-bottom:12px;">➕ New Part Order</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group" style="margin:0;">
+                        <label>Customer Name *</label>
+                        <input type="text" id="poCustomerName" placeholder="Customer name">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>Mobile *</label>
+                        <input type="tel" id="poCustomerMobile" placeholder="Mobile number">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>Device Model</label>
+                        <input type="text" id="poDeviceModel" placeholder="e.g. Redmi Note 10">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>Part Name *</label>
+                        <input type="text" id="poPartName" placeholder="e.g. Display Assembly" list="inventoryItems">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>Part Cost (₹)</label>
+                        <input type="number" id="poPartCost" min="0" step="0.01" placeholder="0">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>Labour Charges (₹)</label>
+                        <input type="number" id="poLabour" min="0" step="0.01" placeholder="0">
+                    </div>
+                    <div class="form-group" style="margin:0; grid-column:1/-1;">
+                        <label>Problem / Notes</label>
+                        <input type="text" id="poProblem" placeholder="Problem description">
+                    </div>
+
+                    <!-- Advance Payment Section -->
+                    <div style="grid-column:1/-1; background:white; padding:14px; border-radius:8px; border:2px solid #667eea;">
+                        <h4 style="color:#667eea; margin-bottom:10px;">💰 Advance Payment</h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group" style="margin:0;">
+                                <label>Advance Amount (₹)</label>
+                                <input type="number" id="poAdvanceAmount" min="0" step="0.01" placeholder="0" value="0">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>Payment Mode</label>
+                                <select id="poAdvanceMode" onchange="togglePoUTR()">
+                                    <option value="Cash">💵 Cash</option>
+                                    <option value="Online">💳 Online/UPI</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;" id="poUTRDiv" style="display:none;">
+                                <label>UTR / Transaction ID</label>
+                                <input type="text" id="poUTR" placeholder="UTR or Transaction ID">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="createPartOrder()" style="margin-top:12px;">📦 Create Part Order</button>
+            </div>
+
+            <!-- Orders Table -->
+            <input type="text" class="search-box" id="poSearch" placeholder="🔍 Search orders..." onkeyup="searchPartOrders()">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order#</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Mobile</th>
+                        <th>Device</th>
+                        <th>Part</th>
+                        <th>Total</th>
+                        <th>Advance</th>
+                        <th>Adv. Mode</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="poTableBody"></tbody>
+            </table>
+        </div>
+
         <div id="reports" class="tab-content">
             <h2>Reports & Settings</h2>
             
@@ -840,6 +946,48 @@
         </div>
     </div>
     
+    <!-- Part Order Final Invoice Modal -->
+    <div id="poInvoiceModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:12px; padding:30px; max-width:520px; width:90%; box-shadow:0 10px 40px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
+            <h3 style="margin:0 0 5px 0; color:#333;">✅ Part Received — Generate Invoice</h3>
+            <p style="font-size:13px; color:#666; margin-bottom:18px;" id="poInvCustomerInfo"></p>
+
+            <div style="background:#e7f3ff; padding:12px; border-radius:8px; margin-bottom:16px; font-size:13px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                    <span>Part: <strong id="poInvPartName"></strong></span>
+                    <span>Device: <strong id="poInvDevice"></strong></span>
+                    <span>Part Cost: <strong id="poInvPartCost"></strong></span>
+                    <span>Labour: <strong id="poInvLabour"></strong></span>
+                    <span>Advance Paid: <strong id="poInvAdvancePaid" style="color:#28a745;"></strong></span>
+                    <span>Balance Due: <strong id="poInvBalance" style="color:#dc3545;"></strong></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="font-weight:600;">Final Payment Mode *</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;">
+                    <button type="button" id="poFinalCashBtn" onclick="selectPoFinalMode('Cash')" style="padding:12px; border:2px solid #6c757d; background:white; border-radius:8px; cursor:pointer; font-weight:600;">💵 Cash</button>
+                    <button type="button" id="poFinalOnlineBtn" onclick="selectPoFinalMode('Online')" style="padding:12px; border:2px solid #17a2b8; background:white; border-radius:8px; cursor:pointer; font-weight:600;">💳 Online</button>
+                </div>
+            </div>
+
+            <div class="form-group" id="poFinalUTRDiv" style="display:none; margin-top:12px;">
+                <label style="font-weight:600;">UTR / Transaction ID *</label>
+                <input type="text" id="poFinalUTR" placeholder="UTR or Transaction ID" style="width:100%; padding:10px; border:2px solid #ddd; border-radius:6px; margin-top:6px;">
+            </div>
+
+            <div class="form-group" style="margin-top:12px;">
+                <label style="font-weight:600;">Handled By</label>
+                <input type="text" id="poFinalHandledBy" placeholder="Employee name" style="width:100%; padding:10px; border:2px solid #ddd; border-radius:6px; margin-top:6px;">
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="closePoInvoiceModal()" style="flex:1; padding:12px; background:#6c757d; color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+                <button onclick="finalizePartOrderInvoice()" style="flex:1; padding:12px; background:#28a745; color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer;">🧾 Generate Invoice</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 🔥 FIREBASE CONFIGURATION
         const firebaseConfig = {
@@ -921,6 +1069,7 @@
             cloudSave('dailyExpenses', dailyExpenses);
             cloudSave('pendingExpenses', pendingExpenses);
             cloudSave('pwOrders', pwOrders);
+            cloudSave('partOrders', partOrders);
             cloudSave('settings', settings);
             cloudSave('invoiceCounter', invoiceCounter);
             syncUsersToCloud();
@@ -979,6 +1128,13 @@
                     loadPWOrders();
                 }
             });
+
+            cloudListen('partOrders', (data) => {
+                partOrders = toArray(data);
+                localStorage.setItem('partOrders', JSON.stringify(partOrders));
+                if(currentTab === 'partorders') loadPartOrders();
+                loadSales(); // refresh sales tab to show orders
+            });
             
             cloudListen('settings', (data) => {
                 if(data) {
@@ -1002,7 +1158,10 @@
         let rmCases = JSON.parse(localStorage.getItem('rmCases')) || [];
         let dailyExpenses = JSON.parse(localStorage.getItem('dailyExpenses')) || [];
         let pendingExpenses = JSON.parse(localStorage.getItem('pendingExpenses')) || [];
+        let partOrders = JSON.parse(localStorage.getItem('partOrders')) || [];
         let invoiceCounter = parseInt(localStorage.getItem('invoiceCounter')) || 1;
+        let currentPoOrderId = null;
+        let currentPoFinalMode = null;
         let currentUserRole = localStorage.getItem('userRole') || 'admin';
         let currentTab = 'invoice'; // Current active tab
         let settings = JSON.parse(localStorage.getItem('settings')) || {
@@ -1217,6 +1376,7 @@
             if(tabName === 'realme-moto') loadRMCases();
             if(tabName === 'creditdebit') loadCreditDebit();
             if(tabName === 'inventory') loadInventory();
+            if(tabName === 'partorders') loadPartOrders();
             if(tabName === 'reports') { loadSettings(); updateReports(); }
             
             console.log('✅ switchTab completed');
@@ -1968,9 +2128,35 @@
             document.getElementById('todaySales').textContent = '₹' + todaySales.toFixed(2);
             document.getElementById('monthSales').textContent = '₹' + monthSales.toFixed(2);
             document.getElementById('totalInvoices').textContent = invoices.length;
+
+            // Show pending part orders on top
+            const pendingOrders = partOrders.filter(o => o.status === 'Pending' || o.status === 'Received');
+            if(pendingOrders.length > 0) {
+                const headerRow = tbody.insertRow();
+                headerRow.innerHTML = `<td colspan="6" style="background:#fff3cd; color:#856404; font-weight:700; padding:10px; font-size:13px;">📦 Part Orders (${pendingOrders.length} pending)</td>`;
+                pendingOrders.forEach(order => {
+                    const row = tbody.insertRow();
+                    row.style.background = order.status === 'Received' ? '#d1ecf1' : '#fff8e1';
+                    row.innerHTML = `
+                        <td><strong>${order.orderNo}</strong></td>
+                        <td>${new Date(order.date).toLocaleDateString('en-IN')}</td>
+                        <td>${order.customerName}<br><small style="color:#666;">${order.partName}</small></td>
+                        <td>₹${order.total.toFixed(2)}<br><small style="color:#28a745;">Adv: ₹${order.advanceAmount.toFixed(2)}</small></td>
+                        <td><span style="background:${order.status==='Received'?'#17a2b8':'#ffc107'}; color:white; padding:3px 8px; border-radius:10px; font-size:11px;">${order.status}</span></td>
+                        <td>
+                            ${order.status==='Pending'?`<button class="btn btn-info" style="padding:4px 8px;font-size:11px;" onclick="markPartReceived(${order.id});switchTab('partorders',{target:document.querySelector('[onclick*=partorders]')})">📦 Mark Received</button>`:''}
+                            ${order.status==='Received'?`<button class="btn btn-success" style="padding:4px 8px;font-size:11px;" onclick="openPoInvoiceModal(${order.id})">🧾 Invoice</button>`:''}
+                        </td>`;
+                });
+                // Divider
+                const divRow = tbody.insertRow();
+                divRow.innerHTML = `<td colspan="6" style="background:#e9ecef; color:#495057; font-weight:700; padding:8px; font-size:12px;">✅ Completed Invoices</td>`;
+            }
+
             [...invoices].reverse().forEach(inv => {
                 const row = tbody.insertRow();
-                row.innerHTML = `<td>#${inv.id}</td><td>${new Date(inv.date).toLocaleDateString('en-IN')}</td>
+                row.innerHTML = `<td>#${inv.id}${inv.partOrderRef ? '<br><small style="color:#667eea;">'+inv.partOrderRef+'</small>' : ''}</td>
+                <td>${new Date(inv.date).toLocaleDateString('en-IN')}</td>
                 <td>${inv.customerName}</td><td>₹${inv.total.toFixed(2)}</td><td>${inv.paymentMode}</td>
                 <td>
                     <button class="btn btn-info" style="padding:5px 10px;" onclick='viewInvoice(${inv.id})'>View</button>
@@ -3491,8 +3677,352 @@
         }
         
         // ============================================
-        // PW ADVANCE/ORDER MANAGEMENT FUNCTIONS
+        // PART ORDER MANAGEMENT FUNCTIONS
         // ============================================
+
+        function togglePoUTR() {
+            const mode = document.getElementById('poAdvanceMode').value;
+            document.getElementById('poUTRDiv').style.display = mode === 'Online' ? 'block' : 'none';
+        }
+
+        function createPartOrder() {
+            const customerName = document.getElementById('poCustomerName').value.trim();
+            const customerMobile = document.getElementById('poCustomerMobile').value.trim();
+            const partName = document.getElementById('poPartName').value.trim();
+            if(!customerName || !customerMobile || !partName) {
+                alert('❌ Customer Name, Mobile aur Part Name zaroori hai!');
+                return;
+            }
+            const partCost = parseFloat(document.getElementById('poPartCost').value) || 0;
+            const labour = parseFloat(document.getElementById('poLabour').value) || 0;
+            const advanceAmount = parseFloat(document.getElementById('poAdvanceAmount').value) || 0;
+            const advanceMode = document.getElementById('poAdvanceMode').value;
+            const utr = document.getElementById('poUTR').value.trim();
+            const total = partCost + labour;
+            const balance = total - advanceAmount;
+
+            if(advanceMode === 'Online' && advanceAmount > 0 && !utr) {
+                alert('❌ Online payment ke liye UTR / Transaction ID daalna zaroori hai!');
+                return;
+            }
+
+            const order = {
+                id: Date.now(),
+                orderNo: 'PO-' + (partOrders.length + 1).toString().padStart(4, '0'),
+                date: new Date().toISOString(),
+                customerName,
+                customerMobile,
+                deviceModel: document.getElementById('poDeviceModel').value.trim(),
+                partName,
+                problem: document.getElementById('poProblem').value.trim(),
+                partCost,
+                labour,
+                total,
+                advanceAmount,
+                advanceMode,
+                utr: advanceMode === 'Online' ? utr : '',
+                balance,
+                status: 'Pending', // Pending → Received → Invoiced
+                invoiceId: null,
+                createdDate: new Date().toISOString()
+            };
+
+            partOrders.push(order);
+            localStorage.setItem('partOrders', JSON.stringify(partOrders));
+            cloudSave('partOrders', partOrders);
+
+            // Add advance to credit/debit if advance > 0
+            if(advanceAmount > 0) {
+                const creditEntry = {
+                    id: Date.now() + 1,
+                    date: new Date().toISOString(),
+                    type: 'Credit',
+                    category: 'Part Order Advance',
+                    description: `${customerName} - ${partName} (${order.orderNo})`,
+                    amount: advanceAmount,
+                    credit: advanceAmount,
+                    debit: 0,
+                    paymentMode: advanceMode,
+                    utr: advanceMode === 'Online' ? utr : ''
+                };
+                creditDebit.push(creditEntry);
+                localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+                cloudSave('creditDebit', creditDebit);
+            }
+
+            markDataChanged();
+
+            // Reset form
+            ['poCustomerName','poCustomerMobile','poDeviceModel','poPartName','poProblem','poUTR'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('poPartCost').value = '0';
+            document.getElementById('poLabour').value = '0';
+            document.getElementById('poAdvanceAmount').value = '0';
+            document.getElementById('poAdvanceMode').value = 'Cash';
+            document.getElementById('poUTRDiv').style.display = 'none';
+
+            loadPartOrders();
+            loadCreditDebit();
+            alert(`✅ Part Order Created!\n\nOrder No: ${order.orderNo}\nCustomer: ${customerName}\nPart: ${partName}\n${advanceAmount > 0 ? 'Advance: ₹' + advanceAmount + ' (' + advanceMode + ')' : 'No advance taken'}`);
+        }
+
+        function loadPartOrders() {
+            const tbody = document.getElementById('poTableBody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            let pending = 0, received = 0, invoiced = 0, totalAdv = 0;
+
+            const sorted = [...partOrders].sort((a,b) => new Date(b.date) - new Date(a.date));
+            sorted.forEach(order => {
+                if(order.status === 'Pending') pending++;
+                else if(order.status === 'Received') received++;
+                else if(order.status === 'Invoiced') invoiced++;
+                totalAdv += order.advanceAmount || 0;
+
+                const statusColor = order.status === 'Pending' ? '#ffc107' : order.status === 'Received' ? '#17a2b8' : '#28a745';
+                const row = tbody.insertRow();
+                row.style.background = order.status === 'Invoiced' ? '#d4edda' : order.status === 'Received' ? '#d1ecf1' : '';
+                row.innerHTML = `
+                    <td><strong>${order.orderNo}</strong></td>
+                    <td>${new Date(order.date).toLocaleDateString('en-IN')}</td>
+                    <td>${order.customerName}</td>
+                    <td>${order.customerMobile}</td>
+                    <td>${order.deviceModel || '-'}</td>
+                    <td>${order.partName}</td>
+                    <td>₹${order.total.toFixed(2)}</td>
+                    <td style="color:#28a745; font-weight:600;">₹${order.advanceAmount.toFixed(2)}<br><small style="color:#666;">${order.advanceMode}${order.utr ? ' | ' + order.utr : ''}</small></td>
+                    <td>${order.advanceMode}</td>
+                    <td style="color:#dc3545; font-weight:600;">₹${order.balance.toFixed(2)}</td>
+                    <td><span style="background:${statusColor}; color:white; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600;">${order.status}</span></td>
+                    <td>
+                        ${order.status === 'Pending' ? `<button class="btn btn-info" style="padding:5px 8px; font-size:12px;" onclick="markPartReceived(${order.id})">📦 Received</button>` : ''}
+                        ${order.status === 'Received' ? `<button class="btn btn-success" style="padding:5px 8px; font-size:12px;" onclick="openPoInvoiceModal(${order.id})">🧾 Invoice</button>` : ''}
+                        ${order.status === 'Invoiced' ? `<button class="btn btn-primary" style="padding:5px 8px; font-size:12px;" onclick="viewPoInvoice(${order.invoiceId})">👁 View</button>` : ''}
+                        <button class="btn btn-danger" style="padding:5px 8px; font-size:12px;" onclick="deletePartOrder(${order.id})">🗑</button>
+                    </td>
+                `;
+            });
+
+            if(document.getElementById('poStatPending')) {
+                document.getElementById('poStatPending').textContent = pending;
+                document.getElementById('poStatReceived').textContent = received;
+                document.getElementById('poStatInvoiced').textContent = invoiced;
+                document.getElementById('poStatAdvance').textContent = '₹' + totalAdv.toFixed(2);
+            }
+        }
+
+        function markPartReceived(id) {
+            const order = partOrders.find(o => o.id === id);
+            if(!order) return;
+            if(!confirm(`Part received confirm karo?\n\nOrder: ${order.orderNo}\nPart: ${order.partName}\nCustomer: ${order.customerName}`)) return;
+
+            order.status = 'Received';
+            order.receivedDate = new Date().toISOString();
+
+            // Add to inventory automatically
+            const invItem = inventory.find(i => i.name.toLowerCase() === order.partName.toLowerCase());
+            if(invItem) {
+                invItem.quantity += 1;
+                cloudSave('inventory', inventory);
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+            }
+
+            localStorage.setItem('partOrders', JSON.stringify(partOrders));
+            cloudSave('partOrders', partOrders);
+            markDataChanged();
+            loadPartOrders();
+            loadInventory();
+            alert(`✅ Part Received!\n\n${order.partName} inventory mein add ho gaya.\n\nAb "🧾 Invoice" button se invoice generate karo.`);
+        }
+
+        function openPoInvoiceModal(id) {
+            const order = partOrders.find(o => o.id === id);
+            if(!order) return;
+            currentPoOrderId = id;
+            currentPoFinalMode = null;
+
+            document.getElementById('poInvCustomerInfo').textContent = `${order.customerName} | ${order.customerMobile} | ${order.deviceModel || ''}`;
+            document.getElementById('poInvPartName').textContent = order.partName;
+            document.getElementById('poInvDevice').textContent = order.deviceModel || '-';
+            document.getElementById('poInvPartCost').textContent = '₹' + order.partCost.toFixed(2);
+            document.getElementById('poInvLabour').textContent = '₹' + order.labour.toFixed(2);
+            document.getElementById('poInvAdvancePaid').textContent = '₹' + order.advanceAmount.toFixed(2) + ' (' + order.advanceMode + ')';
+            document.getElementById('poInvBalance').textContent = '₹' + order.balance.toFixed(2);
+            document.getElementById('poFinalUTRDiv').style.display = 'none';
+            document.getElementById('poFinalUTR').value = '';
+            document.getElementById('poFinalHandledBy').value = '';
+            // Reset buttons
+            document.getElementById('poFinalCashBtn').style.background = 'white';
+            document.getElementById('poFinalOnlineBtn').style.background = 'white';
+
+            document.getElementById('poInvoiceModal').style.display = 'flex';
+        }
+
+        function selectPoFinalMode(mode) {
+            currentPoFinalMode = mode;
+            document.getElementById('poFinalCashBtn').style.background = mode === 'Cash' ? '#28a745' : 'white';
+            document.getElementById('poFinalCashBtn').style.color = mode === 'Cash' ? 'white' : '#333';
+            document.getElementById('poFinalOnlineBtn').style.background = mode === 'Online' ? '#17a2b8' : 'white';
+            document.getElementById('poFinalOnlineBtn').style.color = mode === 'Online' ? 'white' : '#333';
+            document.getElementById('poFinalUTRDiv').style.display = mode === 'Online' ? 'block' : 'none';
+        }
+
+        function closePoInvoiceModal() {
+            document.getElementById('poInvoiceModal').style.display = 'none';
+            currentPoOrderId = null;
+            currentPoFinalMode = null;
+        }
+
+        function finalizePartOrderInvoice() {
+            if(!currentPoFinalMode) { alert('❌ Payment mode select karo!'); return; }
+            const order = partOrders.find(o => o.id === currentPoOrderId);
+            if(!order) return;
+
+            const utr = document.getElementById('poFinalUTR').value.trim();
+            const handledBy = document.getElementById('poFinalHandledBy').value.trim();
+
+            if(currentPoFinalMode === 'Online' && order.balance > 0 && !utr) {
+                alert('❌ Online payment ke liye UTR daalna zaroori hai!');
+                return;
+            }
+
+            // Create invoice
+            const invoiceItems = [];
+            if(order.partCost > 0) {
+                const gstRate = 18;
+                const basePrice = order.partCost / 1.18;
+                invoiceItems.push({ name: order.partName, qty: 1, basePrice, gstRate, total: order.partCost });
+                // Deduct from inventory
+                const invItem = inventory.find(i => i.name.toLowerCase() === order.partName.toLowerCase());
+                if(invItem && invItem.quantity > 0) {
+                    invItem.quantity -= 1;
+                    cloudSave('inventory', inventory);
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+                }
+            }
+
+            const labourBase = order.labour / 1.18;
+            const labourGST = order.labour - labourBase;
+            const subtotal = invoiceItems.reduce((s,i) => s + i.basePrice, 0) + labourBase;
+            const totalGST = invoiceItems.reduce((s,i) => s + (i.total - i.basePrice), 0) + labourGST;
+            const grandTotal = order.total;
+
+            const invoice = {
+                id: invoiceCounter++,
+                date: new Date().toISOString(),
+                customerName: order.customerName,
+                customerMobile: order.customerMobile,
+                deviceModel: order.deviceModel,
+                imeiNumber: '',
+                problemDesc: order.problem,
+                items: invoiceItems,
+                labourBase,
+                labourGST,
+                labourWithGST: order.labour,
+                subtotal,
+                totalGST,
+                total: grandTotal,
+                paymentMode: currentPoFinalMode,
+                handledBy,
+                partOrderRef: order.orderNo,
+                advanceAmount: order.advanceAmount,
+                advanceMode: order.advanceMode,
+                advanceUTR: order.utr,
+                balancePaid: order.balance,
+                balanceMode: currentPoFinalMode,
+                balanceUTR: utr
+            };
+
+            invoices.push(invoice);
+            localStorage.setItem('invoices', JSON.stringify(invoices));
+            localStorage.setItem('invoiceCounter', invoiceCounter);
+
+            // Add balance amount to credit/debit
+            if(order.balance > 0) {
+                const creditEntry = {
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    type: 'Credit',
+                    category: 'Invoice #' + invoice.id,
+                    description: `${order.customerName} - ${order.partName} Balance (${order.orderNo})`,
+                    amount: order.balance,
+                    credit: order.balance,
+                    debit: 0,
+                    paymentMode: currentPoFinalMode,
+                    utr
+                };
+                creditDebit.push(creditEntry);
+            } else {
+                // Full payment was advance, just log invoice
+                const creditEntry = {
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    type: 'Credit',
+                    category: 'Invoice #' + invoice.id,
+                    description: `${order.customerName} - ${order.partName} (Advance Full - ${order.orderNo})`,
+                    amount: 0,
+                    credit: 0,
+                    debit: 0,
+                    paymentMode: order.advanceMode,
+                    note: 'Already collected as advance'
+                };
+                creditDebit.push(creditEntry);
+            }
+
+            localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
+
+            // Update order status
+            order.status = 'Invoiced';
+            order.invoiceId = invoice.id;
+            order.invoicedDate = new Date().toISOString();
+            localStorage.setItem('partOrders', JSON.stringify(partOrders));
+
+            // Sync all to cloud
+            cloudSave('invoices', invoices);
+            cloudSave('creditDebit', creditDebit);
+            cloudSave('invoiceCounter', invoiceCounter);
+            cloudSave('partOrders', partOrders);
+            cloudSave('inventory', inventory);
+
+            markDataChanged();
+            closePoInvoiceModal();
+            loadPartOrders();
+            loadSales();
+            loadCreditDebit();
+            loadInventory();
+
+            // Show invoice
+            showInvoicePreview(invoice);
+            alert(`✅ Invoice Generated!\n\nInvoice #${invoice.id}\nCustomer: ${order.customerName}\nTotal: ₹${grandTotal.toFixed(2)}\nAdvance: ₹${order.advanceAmount.toFixed(2)}\nBalance: ₹${order.balance.toFixed(2)}`);
+        }
+
+        function viewPoInvoice(invoiceId) {
+            const inv = invoices.find(i => i.id === invoiceId);
+            if(inv) showInvoicePreview(inv);
+        }
+
+        function deletePartOrder(id) {
+            const order = partOrders.find(o => o.id === id);
+            if(!order) return;
+            if(order.status === 'Invoiced') { alert('❌ Invoiced order delete nahi ho sakta!'); return; }
+            if(!confirm(`Delete order ${order.orderNo}?\n${order.customerName} - ${order.partName}`)) return;
+            partOrders = partOrders.filter(o => o.id !== id);
+            localStorage.setItem('partOrders', JSON.stringify(partOrders));
+            cloudSave('partOrders', partOrders);
+            loadPartOrders();
+        }
+
+        function searchPartOrders() {
+            const q = document.getElementById('poSearch').value.toLowerCase();
+            document.querySelectorAll('#poTableBody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        // Initialize partOrders on load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => { loadPartOrders(); }, 1200);
+        });
         
         // Initialize role-based UI on load
         window.addEventListener('DOMContentLoaded', () => {
