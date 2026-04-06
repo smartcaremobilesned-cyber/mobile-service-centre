@@ -3,12 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile Service Centre - Login</title>
-    
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    
+    <title>Login - Mobile Service Centre</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -18,61 +13,27 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
         }
-        
         .login-container {
             background: white;
             padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 90%;
             max-width: 400px;
-            width: 100%;
         }
-        
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .login-header h1 {
-            color: #667eea;
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-        
-        .login-header p {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-            font-size: 14px;
-        }
-        
-        .form-group input {
+        h1 { text-align: center; color: #333; margin-bottom: 30px; font-size: 24px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; }
+        input {
             width: 100%;
             padding: 12px;
-            border: 2px solid #dee2e6;
+            border: 2px solid #ddd;
             border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s;
+            font-size: 16px;
         }
-        
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .btn-login {
+        input:focus { outline: none; border-color: #667eea; }
+        button {
             width: 100%;
             padding: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -82,180 +43,58 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            margin-top: 10px;
         }
-        
-        .btn-login:hover {
-            transform: translateY(-2px);
-        }
-        
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            display: none;
-            font-size: 14px;
-        }
-        
-        .info-box {
-            background: #d1ecf1;
-            color: #0c5460;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 20px;
-            font-size: 12px;
-        }
-        
-        .remember-me {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .remember-me input {
-            width: auto;
-            margin-right: 8px;
-        }
-        
-        .remember-me label {
-            font-size: 14px;
-            color: #666;
-            cursor: pointer;
-        }
+        button:hover { opacity: 0.9; }
+        .error { color: #dc3545; font-size: 14px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <div class="login-header">
-            <h1>📱 Mobile Service Centre</h1>
-            <p>Please login to continue</p>
-        </div>
+        <h1>🏪 Mobile Service Centre</h1>
+        <h2 style="text-align: center; color: #666; font-size: 16px; margin-bottom: 30px;">Login to Continue</h2>
         
-        <div id="errorMessage" class="error-message"></div>
-        
-        <form id="loginForm" onsubmit="return handleLogin(event)">
+        <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" required autocomplete="username" placeholder="Enter username">
+                <label>Username</label>
+                <input type="text" id="username" required autocomplete="username">
             </div>
             
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" required autocomplete="current-password" placeholder="Enter password">
+                <label>Password</label>
+                <input type="password" id="password" required autocomplete="current-password">
             </div>
             
-            <div class="remember-me">
-                <input type="checkbox" id="rememberMe">
-                <label for="rememberMe">Remember me</label>
-            </div>
-            
-            <button type="submit" class="btn-login">Login</button>
+            <button type="submit">Login</button>
+            <p class="error" id="errorMsg">Invalid username or password!</p>
         </form>
         
-        <div class="info-box">
-            <strong>Default Login:</strong><br>
-            Username: admin<br>
-            Password: admin123<br>
-            <small>Change password after first login from Settings</small>
-        </div>
+        <p style="margin-top: 20px; text-align: center; color: #999; font-size: 12px;">
+            Default: admin / Support@123
+        </p>
     </div>
-    
+
     <script>
-        // 🔥 FIREBASE CONFIGURATION
-        const firebaseConfig = {
-          apiKey: "AIzaSyBTOjKMqDc7mPXRdWo865ryggdG_ENstl0",
-          authDomain: "mobile-service-centre-38b05.firebaseapp.com",
-          databaseURL: "https://mobile-service-centre-38b05-default-rtdb.asia-southeast1.firebasedatabase.app",
-          projectId: "mobile-service-centre-38b05",
-          storageBucket: "mobile-service-centre-38b05.firebasestorage.app",
-          messagingSenderId: "566007646551",
-          appId: "1:566007646551:web:c32ce1ae17427a69bbd612"
+        const users = {
+            'admin': { password: 'Support@123', role: 'admin' },
+            'employee': { password: 'emp123', role: 'employee' }
         };
-        
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        
-        console.log('🔥 Firebase Connected - Login Page');
-        
-        // Load users from cloud on page load
-        database.ref('users').once('value', (snapshot) => {
-            const cloudUsers = snapshot.val();
-            if(cloudUsers) {
-                localStorage.setItem('users', JSON.stringify(cloudUsers));
-                console.log('✅ Users loaded from cloud');
-            } else {
-                // Initialize default user
-                const defaultUsers = {
-                    'admin': { password: 'admin123', role: 'admin' },
-                    'employee': { password: 'emp123', role: 'employee' }
-                };
-                localStorage.setItem('users', JSON.stringify(defaultUsers));
-                database.ref('users').set(defaultUsers);
-                console.log('✅ Default users created (admin + employee)');
-            }
-        });
-        
-        // Check if already logged in
-        if(localStorage.getItem('isLoggedIn') === 'true') {
-            window.location.href = 'app.html';
-        }
-        
-        // Load remembered username
-        const rememberedUser = localStorage.getItem('rememberedUsername');
-        if(rememberedUser) {
-            document.getElementById('username').value = rememberedUser;
-            document.getElementById('rememberMe').checked = true;
-        }
-        
+
         function handleLogin(event) {
             event.preventDefault();
-            
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
-            const rememberMe = document.getElementById('rememberMe').checked;
-            
-            // Get stored credentials (loaded from cloud)
-            const storedUsers = JSON.parse(localStorage.getItem('users')) || {
-                'admin': { password: 'admin123', role: 'admin' },
-                'employee': { password: 'emp123', role: 'employee' }
-            };
-            
-            // Validate credentials
-            if(storedUsers[username] && storedUsers[username].password === password) {
-                // Login successful
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (users[username] && users[username].password === password) {
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('currentUser', username);
-                localStorage.setItem('userRole', storedUsers[username].role || 'user');
+                localStorage.setItem('userRole', users[username].role);
                 localStorage.setItem('loginTime', new Date().toISOString());
-                
-                // Remember username if checked
-                if(rememberMe) {
-                    localStorage.setItem('rememberedUsername', username);
-                } else {
-                    localStorage.removeItem('rememberedUsername');
-                }
-                
-                // Redirect to app
                 window.location.href = 'app.html';
             } else {
-                // Login failed
-                const errorMsg = document.getElementById('errorMessage');
-                errorMsg.textContent = '❌ Invalid username or password!';
                 errorMsg.style.display = 'block';
-                
-                // Clear password field
-                document.getElementById('password').value = '';
-                
-                // Hide error after 3 seconds
-                setTimeout(() => {
-                    errorMsg.style.display = 'none';
-                }, 3000);
             }
-            
-            return false;
         }
     </script>
 </body>
