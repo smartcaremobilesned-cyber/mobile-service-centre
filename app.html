@@ -3489,25 +3489,6 @@
             
             alert(`❌ ${expense.type === 'PW Order Cash' ? 'PW order cash payment' : 'Expense'} Rejected!\n\n${expense.name}: Rs ${expense.amount.toFixed(2)}`);
         }
-            localStorage.setItem('pendingExpenses', JSON.stringify(pendingExpenses));
-            cloudSave('pendingExpenses', pendingExpenses);
-            
-            showPendingApprovalsBadge();
-            
-            // Close modal if no more pending
-            const remaining = pendingExpenses.filter(e => e.status === 'pending');
-            if(remaining.length === 0) {
-                const modal = document.getElementById('approvalsModal');
-                if(modal) modal.remove();
-            } else {
-                // Refresh modal
-                const modal = document.getElementById('approvalsModal');
-                if(modal) modal.remove();
-                showPendingApprovalsModal();
-            }
-            
-            alert('❌ Expense Rejected!');
-        }
         
         // ============================================
         // PW ADVANCE/ORDER MANAGEMENT FUNCTIONS
