@@ -1827,25 +1827,26 @@
                 const isCurrentMonth = entryDate.getMonth() === currentMonth && 
                                       entryDate.getFullYear() === currentYear;
                 
-                // Today's stats by payment mode
-                if(isToday && entry.type === 'Credit') {
-                    if(entry.paymentMode === 'Online') {
+                if(isToday && entry.type === 'Credit' && entry.credit > 0) {
+                    // FIX 2: paymentMode check — Part Order Advance bhi include
+                    const mode = entry.paymentMode || 'Cash';
+                    if(mode === 'Online') {
                         todayOnline += entry.credit;
                     } else {
                         todayCash += entry.credit;
                     }
                 }
                 
-                // Monthly stats
                 if(isCurrentMonth) {
-                    if(entry.type === 'Credit') {
+                    if(entry.type === 'Credit' && entry.credit > 0) {
                         monthlyTotalCredit += entry.credit;
-                        if(entry.paymentMode === 'Online') {
+                        const mode = entry.paymentMode || 'Cash';
+                        if(mode === 'Online') {
                             monthlyOnlineCredit += entry.credit;
                         } else {
                             monthlyCashCredit += entry.credit;
                         }
-                    } else {
+                    } else if(entry.type === 'Debit') {
                         monthlyTotalDebit += entry.debit;
                     }
                 }
@@ -1853,13 +1854,11 @@
             
             const netBalance = monthlyTotalCredit - monthlyTotalDebit;
             
-            // Update daily dashboard
             if(document.getElementById('cdTodayCash')) {
                 document.getElementById('cdTodayCash').textContent = todayCash.toFixed(2);
                 document.getElementById('cdTodayOnline').textContent = todayOnline.toFixed(2);
             }
             
-            // Update monthly dashboard
             if(document.getElementById('cdMonthlyCashCredit')) {
                 document.getElementById('cdMonthlyCashCredit').textContent = monthlyCashCredit.toFixed(2);
                 document.getElementById('cdMonthlyOnlineCredit').textContent = monthlyOnlineCredit.toFixed(2);
@@ -1868,7 +1867,7 @@
                 document.getElementById('cdNetBalance').textContent = netBalance.toFixed(2);
                 document.getElementById('cdNetBalance').style.color = netBalance >= 0 ? '#28a745' : '#dc3545';
                 
-                const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
                 document.getElementById('cdMonthName').textContent = monthNames[currentMonth] + ' ' + currentYear;
             }
         }
@@ -2130,7 +2129,7 @@
             document.getElementById('monthSales').textContent = '₹' + monthSales.toFixed(2);
             document.getElementById('totalInvoices').textContent = invoices.length;
 
-            // Show pending part orders on top
+            // FIX 4: Show pending/received part orders on top — NO Mark Received button
             const pendingOrders = partOrders.filter(o => o.status === 'Pending' || o.status === 'Received');
             if(pendingOrders.length > 0) {
                 const headerRow = tbody.insertRow();
@@ -2145,11 +2144,9 @@
                         <td>₹${order.total.toFixed(2)}<br><small style="color:#28a745;">Adv: ₹${order.advanceAmount.toFixed(2)}</small></td>
                         <td><span style="background:${order.status==='Received'?'#17a2b8':'#ffc107'}; color:white; padding:3px 8px; border-radius:10px; font-size:11px;">${order.status}</span></td>
                         <td>
-                            ${order.status==='Pending'?`<button class="btn btn-info" style="padding:4px 8px;font-size:11px;" onclick="markPartReceived(${order.id});switchTab('partorders',{target:document.querySelector('[onclick*=partorders]')})">📦 Mark Received</button>`:''}
-                            ${order.status==='Received'?`<button class="btn btn-success" style="padding:4px 8px;font-size:11px;" onclick="openPoInvoiceModal(${order.id})">🧾 Invoice</button>`:''}
+                            ${order.status==='Received' ? `<button class="btn btn-success" style="padding:4px 8px;font-size:11px;" onclick="openPoInvoiceModal(${order.id})">🧾 Invoice</button>` : '<span style="color:#888;font-size:11px;">Awaiting part...</span>'}
                         </td>`;
                 });
-                // Divider
                 const divRow = tbody.insertRow();
                 divRow.innerHTML = `<td colspan="6" style="background:#e9ecef; color:#495057; font-weight:700; padding:8px; font-size:12px;">✅ Completed Invoices</td>`;
             }
@@ -3412,6 +3409,7 @@
                 window.deleteDailyExpense = () => { alert('❌ Access Denied! Only Admin can delete.'); };
                 window.deleteInventoryItem = () => { alert('❌ Access Denied! Only Admin can delete.'); };
                 window.deleteCreditDebit = () => { alert('❌ Access Denied! Only Admin can delete.'); };
+                window.deletePartOrder = () => { alert('❌ Access Denied! Only Admin can delete.'); };
                 
             } else {
                 // Admin - show admin-only dashboards
@@ -3814,6 +3812,7 @@
             tbody.innerHTML = '';
 
             let pending = 0, received = 0, invoiced = 0, totalAdv = 0;
+            const isAdmin = currentUserRole === 'admin';
 
             const sorted = [...partOrders].sort((a,b) => new Date(b.date) - new Date(a.date));
             sorted.forEach(order => {
@@ -3826,17 +3825,20 @@
                 const row = tbody.insertRow();
                 row.style.background = order.status === 'Invoiced' ? '#d4edda' : order.status === 'Received' ? '#d1ecf1' : '';
 
-                // FIX 4: Invoiced orders mein balance 0 dikhao, aur View button properly kaam kare
+                // FIX: Invoiced = Paid, show ✅ Paid; others show balance
                 const balanceDisplay = order.status === 'Invoiced'
-                    ? `<span style="color:#28a745; font-weight:600;">✅ Paid</span>`
-                    : `<span style="color:#dc3545; font-weight:600;">₹${(order.balance || 0).toFixed(2)}</span>`;
+                    ? `<span style="color:#28a745;font-weight:700;">✅ Paid</span>`
+                    : `<span style="color:#dc3545;font-weight:700;">₹${(order.balance||0).toFixed(2)}</span>`;
 
-                // FIX 3 & 4: View button with proper invoiceId, Delete for non-invoiced only
+                // FIX 1: Admin only delete; FIX 3: View uses invoiceId properly
                 const actionBtns = `
                     ${order.status === 'Pending' ? `<button class="btn btn-info" style="padding:5px 8px;font-size:11px;" onclick="markPartReceived(${order.id})">📦 Received</button>` : ''}
+                    ${order.status === 'Pending' ? `<button style="padding:5px 8px;font-size:11px;background:#25D366;color:white;border:none;border-radius:6px;cursor:pointer;margin-top:2px;" onclick="sendWhatsAppReminder(${order.id})">💬 WA</button>` : ''}
                     ${order.status === 'Received' ? `<button class="btn btn-success" style="padding:5px 8px;font-size:11px;" onclick="openPoInvoiceModal(${order.id})">🧾 Invoice</button>` : ''}
+                    ${order.status === 'Received' ? `<button style="padding:5px 8px;font-size:11px;background:#25D366;color:white;border:none;border-radius:6px;cursor:pointer;margin-top:2px;" onclick="sendWhatsAppReminder(${order.id})">💬 WA</button>` : ''}
                     ${order.status === 'Invoiced' && order.invoiceId ? `<button class="btn btn-primary" style="padding:5px 8px;font-size:11px;" onclick="viewPoInvoice(${order.invoiceId})">👁 View</button>` : ''}
-                    ${order.status !== 'Invoiced' ? `<button class="btn btn-danger" style="padding:5px 8px;font-size:11px;margin-top:3px;" onclick="deletePartOrder(${order.id})">🗑 Delete</button>` : ''}
+                    ${order.status !== 'Invoiced' && isAdmin ? `<button class="btn btn-danger" style="padding:5px 8px;font-size:11px;margin-top:2px;" onclick="deletePartOrder(${order.id})">🗑 Del</button>` : ''}
+                    ${order.status === 'Invoiced' && isAdmin ? `<button class="btn btn-danger" style="padding:5px 8px;font-size:11px;margin-top:2px;" onclick="deletePartOrder(${order.id})">🗑 Del</button>` : ''}
                 `;
 
                 row.innerHTML = `
@@ -3844,13 +3846,14 @@
                     <td>${new Date(order.date).toLocaleDateString('en-IN')}</td>
                     <td>${order.customerName}</td>
                     <td>${order.customerMobile}</td>
-                    <td>${order.deviceModel || '-'}</td>
+                    <td>${order.deviceModel||'-'}</td>
                     <td>${order.partName}</td>
-                    <td>₹${(order.total || 0).toFixed(2)}</td>
-                    <td style="color:#28a745; font-weight:600;">₹${(order.advanceAmount || 0).toFixed(2)}<br><small style="color:#666;">${order.advanceMode || ''}${order.utr ? ' | ' + order.utr : ''}</small></td>
-                    <td>${order.advanceMode || '-'}</td>
+                    <td>₹${(order.total||0).toFixed(2)}</td>
+                    <td style="color:#28a745;font-weight:600;">₹${(order.advanceAmount||0).toFixed(2)}<br>
+                        <small style="color:#666;">${order.advanceMode||''}${order.utr?' | '+order.utr:''}</small></td>
+                    <td>${order.advanceMode||'-'}</td>
                     <td>${balanceDisplay}</td>
-                    <td><span style="background:${statusColor}; color:white; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600;">${order.status}</span></td>
+                    <td><span style="background:${statusColor};color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">${order.status}</span></td>
                     <td>${actionBtns}</td>
                 `;
             });
@@ -3953,13 +3956,14 @@
                 const gstRate = 18;
                 const basePrice = order.partCost / 1.18;
                 invoiceItems.push({ name: order.partName, qty: 1, basePrice, gstRate, total: order.partCost });
-                // Deduct from inventory
-                const invItem = inventory.find(i => i.name.toLowerCase() === order.partName.toLowerCase());
-                if(invItem && invItem.quantity > 0) {
-                    invItem.quantity -= 1;
-                    cloudSave('inventory', inventory);
-                    localStorage.setItem('inventory', JSON.stringify(inventory));
-                }
+            }
+
+            // FIX 3: Auto deduct from inventory when invoiced
+            const invItem = inventory.find(i => i.name.toLowerCase() === order.partName.toLowerCase());
+            if(invItem && invItem.quantity > 0) {
+                invItem.quantity -= 1;
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+                cloudSave('inventory', inventory);
             }
 
             const labourBase = order.labour > 0 ? order.labour / 1.18 : 0;
@@ -3998,8 +4002,8 @@
             localStorage.setItem('invoices', JSON.stringify(invoices));
             localStorage.setItem('invoiceCounter', invoiceCounter);
 
-            // FIX 4: Credit/Debit mein sirf balance amount add karo (advance already add hua tha)
-            // Agar balance > 0 toh add karo, warna zero-amount entry mat banao
+            // FIX 2: Credit/Debit mein balance amount add karo with correct paymentMode
+            // Advance already add ho chuka tha order create karte waqt
             if(order.balance > 0) {
                 const creditEntry = {
                     id: Date.now(),
@@ -4010,18 +4014,19 @@
                     amount: order.balance,
                     credit: order.balance,
                     debit: 0,
-                    paymentMode: currentPoFinalMode,
-                    utr
+                    paymentMode: currentPoFinalMode,  // Cash ya Online properly set
+                    utr: currentPoFinalMode === 'Online' ? utr : ''
                 };
                 creditDebit.push(creditEntry);
                 localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
                 cloudSave('creditDebit', creditDebit);
             }
+            // Agar pura advance tha (balance=0), credit/debit mein kuch add nahi — advance pehle se add hai
 
-            // Update order — FIX 4: invoiceId properly save karo
+            // Update order
             order.status = 'Invoiced';
             order.invoiceId = invoice.id;
-            order.balance = 0; // Mark as fully paid
+            order.balance = 0;
             order.invoicedDate = new Date().toISOString();
             localStorage.setItem('partOrders', JSON.stringify(partOrders));
 
@@ -4029,7 +4034,6 @@
             cloudSave('invoices', invoices);
             cloudSave('invoiceCounter', invoiceCounter);
             cloudSave('partOrders', partOrders);
-            cloudSave('inventory', inventory);
 
             markDataChanged();
             closePoInvoiceModal();
@@ -4038,10 +4042,10 @@
             loadCreditDebit();
             loadInventory();
 
-            // FIX 3: Show invoice preview — works for both admin and employee
+            // Show invoice preview - works for admin & employee
             currentInvoiceForPrint = invoice;
             showInvoicePreview(invoice);
-            alert(`✅ Invoice Generated!\n\nInvoice #${invoice.id}\nCustomer: ${order.customerName}\nTotal: ₹${grandTotal.toFixed(2)}\n\nPrint karne ke liye "Print Invoice" button dabao.`);
+            alert(`✅ Invoice Generated!\n\nInvoice #${invoice.id}\nCustomer: ${order.customerName}\nTotal: ₹${grandTotal.toFixed(2)}\nAdvance: ₹${(order.advanceAmount||0).toFixed(2)} (${order.advanceMode})\nBalance: ₹${(invoice.balancePaid||0).toFixed(2)} (${currentPoFinalMode})\n\nPrint karne ke liye "Print Invoice" dabao.`);
         }
 
         // FIX 4: viewPoInvoice properly works with numeric invoiceId
@@ -4056,13 +4060,20 @@
             }
         }
 
-        // FIX 2: deletePartOrder properly working
+        // FIX 1: Delete - Admin only, works for all statuses
         function deletePartOrder(orderId) {
+            if(currentUserRole !== 'admin') {
+                alert('❌ Access Denied! Sirf Admin delete kar sakta hai.');
+                return;
+            }
             const id = parseInt(orderId) || orderId;
             const order = partOrders.find(o => o.id == id);
             if(!order) { alert('Order nahi mila!'); return; }
-            if(order.status === 'Invoiced') { alert('❌ Invoiced order delete nahi ho sakta!'); return; }
-            if(!confirm(`Delete karein?\n\nOrder: ${order.orderNo}\nCustomer: ${order.customerName}\nPart: ${order.partName}`)) return;
+
+            const warning = order.status === 'Invoiced'
+                ? `⚠️ Yeh order INVOICED hai!\nInvoice #${order.invoiceId} bhi record mein rahega.\n\n`
+                : '';
+            if(!confirm(`${warning}Delete karein?\n\nOrder: ${order.orderNo}\nCustomer: ${order.customerName}\nPart: ${order.partName}\nStatus: ${order.status}`)) return;
 
             partOrders = partOrders.filter(o => o.id != id);
             localStorage.setItem('partOrders', JSON.stringify(partOrders));
@@ -4080,24 +4091,50 @@
             });
         }
 
-        // Smart Features: Low stock & pending order notifications
+        // Smart Features: Alerts badge + WhatsApp reminder
         function checkSmartAlerts() {
             const lowStockParts = inventory.filter(i => i.quantity <= i.minStock);
             const pendingOrders = partOrders.filter(o => o.status === 'Pending');
             const receivedOrders = partOrders.filter(o => o.status === 'Received');
 
-            let alerts = [];
-            if(receivedOrders.length > 0) alerts.push(`📦 ${receivedOrders.length} part(s) received — invoice pending!`);
-            if(pendingOrders.length > 0) alerts.push(`⏳ ${pendingOrders.length} part order(s) awaiting delivery`);
-            if(lowStockParts.length > 0) alerts.push(`⚠️ ${lowStockParts.length} item(s) low/out of stock`);
+            let totalAlerts = receivedOrders.length + (lowStockParts.length > 0 ? 1 : 0);
 
-            if(alerts.length > 0) {
-                const badge = document.getElementById('pendingApprovalsBadge');
-                if(badge && currentUserRole === 'admin') {
-                    // Add smart alerts to badge count
+            // Update badge for admin
+            const badge = document.getElementById('pendingApprovalsBadge');
+            if(badge && currentUserRole === 'admin') {
+                const expPending = pendingExpenses.filter(e => e.status === 'pending').length;
+                const total = expPending + receivedOrders.length;
+                if(total > 0) {
+                    badge.textContent = `🔔 ${total} Pending`;
+                    badge.style.display = 'block';
+                    badge.style.animation = 'pulse 2s infinite';
+                } else {
+                    badge.style.display = 'none';
                 }
-                console.log('🔔 Smart Alerts:', alerts);
             }
+
+            // Smart console alerts
+            if(receivedOrders.length > 0) console.log(`📦 ${receivedOrders.length} part(s) received — invoice pending!`);
+            if(pendingOrders.length > 0) console.log(`⏳ ${pendingOrders.length} part order(s) awaiting delivery`);
+            if(lowStockParts.length > 0) console.log(`⚠️ Low stock: ${lowStockParts.map(i=>i.name).join(', ')}`);
+        }
+
+        // Smart WhatsApp reminder for pending orders
+        function sendWhatsAppReminder(orderId) {
+            const order = partOrders.find(o => o.id == orderId);
+            if(!order) return;
+            const msg = encodeURIComponent(
+                `Namaste ${order.customerName} ji 🙏\n\n` +
+                `Aapka part order ready hai!\n\n` +
+                `📦 Order: ${order.orderNo}\n` +
+                `🔧 Part: ${order.partName}\n` +
+                `📱 Device: ${order.deviceModel||'N/A'}\n` +
+                `💰 Total: ₹${order.total.toFixed(2)}\n` +
+                `✅ Advance: ₹${order.advanceAmount.toFixed(2)}\n` +
+                `💵 Balance: ₹${order.balance.toFixed(2)}\n\n` +
+                `Kripya service centre par aayein.\n\nSMART CARE MOBILES`
+            );
+            window.open(`https://wa.me/91${order.customerMobile}?text=${msg}`, '_blank');
         }
 
         // Initialize partOrders on load
@@ -4105,7 +4142,7 @@
             setTimeout(() => {
                 loadPartOrders();
                 checkSmartAlerts();
-                setInterval(checkSmartAlerts, 5 * 60 * 1000); // Check every 5 min
+                setInterval(checkSmartAlerts, 3 * 60 * 1000); // Every 3 min
             }, 1200);
         });
         
