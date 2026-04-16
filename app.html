@@ -262,23 +262,28 @@
                 </div>
             </div>
             
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <div class="form-group" style="flex: 1; margin: 0;">
-                    <label>Payment</label>
-                    <select id="paymentMode">
-                        <option value="Cash">Cash</option>
-                        <option value="UPI">UPI</option>
-                        <option value="Card">Card</option>
-                        <option value="Pending">Pending</option>
-                    </select>
+            <div style="margin-top:15px; background:#e7f3ff; padding:14px; border-radius:8px; border:2px solid #667eea;">
+                <h4 style="color:#667eea; margin-bottom:10px;">💰 Payment Details</h4>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div class="form-group" style="margin:0;">
+                        <label>💵 Cash Amount (₹)</label>
+                        <input type="number" id="cashAmount" min="0" step="0.01" placeholder="0" value="0" oninput="autoFillSplitPayment()">
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>💳 UPI/Online Amount (₹)</label>
+                        <input type="number" id="upiAmount" min="0" step="0.01" placeholder="0" value="0" oninput="autoFillSplitPayment()">
+                    </div>
+                    <div class="form-group" style="margin:0; grid-column:1/-1;" id="upiDetailsDiv">
+                        <label>UPI Transaction ID / UTR <span id="upiMandatoryLabel" style="color:#dc3545; display:none;">*</span></label>
+                        <input type="text" id="upiTransactionId" placeholder="UTR / UPI Transaction ID (required if UPI amount > 0)">
+                    </div>
                 </div>
-                <div class="form-group" style="flex: 1; margin: 0;">
-                    <label>Handled By</label>
-                    <input type="text" id="handledBy" placeholder="Employee name">
+                <div style="margin-top:8px; padding:8px; background:white; border-radius:6px; border:1px solid #dee2e6; font-size:13px;" id="paymentSummaryDiv">
+                    <span id="paymentSummaryText" style="color:#666;">Enter amounts above</span>
                 </div>
             </div>
             
-            <button class="btn btn-success" onclick="generateInvoice()">Generate Invoice</button>
+            <button class="btn btn-success" onclick="generateInvoice()" style="margin-top:12px;">Generate Invoice</button>
         </div>
         
         <div id="sales" class="tab-content">
@@ -561,26 +566,14 @@
                         <div style="font-size: 18px; font-weight: 700; color: #dc3545; margin-top: 5px;">Rs <span id="cdMonthlyTotalDebit">0.00</span></div>
                     </div>
                 </div>
-                <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; border: 3px solid #667eea;">
-                    <div style="font-size: 13px; color: #666; font-weight: 600;">NET BALANCE</div>
-                    <div style="font-size: 28px; font-weight: 700; color: #667eea; margin-top: 5px;">Rs <span id="cdNetBalance">0.00</span></div>
+                <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; border: 3px solid #28a745;">
+                    <div style="font-size: 13px; color: #666; font-weight: 600;">💵 NET CASH BALANCE</div>
+                    <div style="font-size: 28px; font-weight: 700; color: #28a745; margin-top: 5px;">Rs <span id="cdNetBalance">0.00</span></div>
+                    <div style="font-size: 11px; color: #17a2b8; margin-top: 4px;">💳 Online: Rs <span id="cdNetOnline">0.00</span></div>
                 </div>
             </div>
             
-            <div class="stats-grid">
-                <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                    <h3 style="font-size: 14px;">Today Credit (Income)</h3>
-                    <div class="value" id="todayCredit">₹0</div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-                    <h3 style="font-size: 14px;">Today Debit (Expense)</h3>
-                    <div class="value" id="todayDebit">₹0</div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <h3 style="font-size: 14px;">Today Profit/Loss</h3>
-                    <div class="value" id="todayProfit">₹0</div>
-                </div>
-            </div>
+            <!-- Stats removed as per requirement - Today Credit/Debit/Profit not needed -->
             
             <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #dc3545;">
                 <h3 style="color: #721c24; margin-bottom: 10px;">➖ Add Debit (Expense)</h3>
@@ -629,6 +622,7 @@
                         <th>Description</th>
                         <th>Credit</th>
                         <th>Debit</th>
+                        <th>Mode</th>
                         <th>Balance</th>
                         <th>Action</th>
                     </tr>
@@ -1441,6 +1435,21 @@
             const customerName = document.getElementById('customerName').value;
             const customerMobile = document.getElementById('customerMobile').value;
             if(!customerName || !customerMobile) { alert('Enter customer name and mobile!'); return; }
+
+            const cashAmount = parseFloat(document.getElementById('cashAmount').value) || 0;
+            const upiAmount = parseFloat(document.getElementById('upiAmount').value) || 0;
+            const upiId = document.getElementById('upiTransactionId').value.trim();
+
+            if(upiAmount > 0 && !upiId) {
+                alert('❌ UPI amount dalne par UTR / Transaction ID zaroori hai!');
+                return;
+            }
+
+            // Determine paymentMode
+            let paymentMode = 'Cash';
+            if(cashAmount > 0 && upiAmount > 0) paymentMode = 'Split';
+            else if(upiAmount > 0) paymentMode = 'UPI';
+            else paymentMode = 'Cash';
             
             const items = [];
             document.querySelectorAll('.invoice-item').forEach(item => {
@@ -1452,7 +1461,6 @@
                     const totalWithGST = qty * priceWithGST;
                     const basePrice = totalWithGST / (1 + (gstRate / 100));
                     items.push({ name, qty, basePrice, gstRate, total: totalWithGST });
-                    
                     const invItem = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
                     if(invItem && invItem.quantity >= qty) {
                         invItem.quantity -= qty;
@@ -1469,6 +1477,12 @@
             const subtotal = itemsSubtotal + labourBase;
             const totalGST = itemsGST + labourGST;
             const grandTotal = subtotal + totalGST;
+
+            // Validate total payment
+            const totalPaid = cashAmount + upiAmount;
+            if(totalPaid > 0 && Math.abs(totalPaid - grandTotal) > 1) {
+                if(!confirm(`⚠️ Payment mismatch!\nInvoice Total: ₹${grandTotal.toFixed(2)}\nTotal Paid: ₹${totalPaid.toFixed(2)}\n\nPhir bhi generate karein?`)) return;
+            }
             
             const invoice = {
                 id: invoiceCounter++,
@@ -1485,29 +1499,54 @@
                 subtotal,
                 totalGST,
                 total: grandTotal,
-                paymentMode: document.getElementById('paymentMode').value,
-                handledBy: document.getElementById('handledBy').value
+                paymentMode,
+                cashAmount,
+                upiAmount,
+                upiId: upiAmount > 0 ? upiId : '',
+                handledBy: localStorage.getItem('currentUser') || ''
             };
             
             invoices.push(invoice);
             localStorage.setItem('invoices', JSON.stringify(invoices));
             localStorage.setItem('invoiceCounter', invoiceCounter);
             
-            // Add to Credit/Debit as Credit (Income)
-            const creditEntry = {
-                id: Date.now(),
-                date: new Date().toISOString(),
-                type: 'Credit',
-                category: 'Invoice #' + invoice.id,
-                description: customerName + ' - ' + (invoice.deviceModel || 'Service'),
-                amount: grandTotal,
-                credit: grandTotal,
-                debit: 0
-            };
-            creditDebit.push(creditEntry);
+            // Add to Credit/Debit — split into Cash + Online entries
+            if(cashAmount > 0) {
+                creditDebit.push({
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    type: 'Credit',
+                    category: 'Invoice #' + invoice.id,
+                    description: customerName + ' - ' + (invoice.deviceModel || 'Service') + ' (Cash)',
+                    amount: cashAmount, credit: cashAmount, debit: 0,
+                    paymentMode: 'Cash', utr: ''
+                });
+            }
+            if(upiAmount > 0) {
+                creditDebit.push({
+                    id: Date.now() + 1,
+                    date: new Date().toISOString(),
+                    type: 'Credit',
+                    category: 'Invoice #' + invoice.id,
+                    description: customerName + ' - ' + (invoice.deviceModel || 'Service') + ' (UPI)',
+                    amount: upiAmount, credit: upiAmount, debit: 0,
+                    paymentMode: 'Online', utr: upiId
+                });
+            }
+            // If neither entered (0,0), add full as cash
+            if(cashAmount === 0 && upiAmount === 0) {
+                creditDebit.push({
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    type: 'Credit',
+                    category: 'Invoice #' + invoice.id,
+                    description: customerName + ' - ' + (invoice.deviceModel || 'Service'),
+                    amount: grandTotal, credit: grandTotal, debit: 0,
+                    paymentMode: 'Cash', utr: ''
+                });
+            }
+
             localStorage.setItem('creditDebit', JSON.stringify(creditDebit));
-            
-            // 🔥 SYNC TO CLOUD
             cloudSave('invoices', invoices);
             cloudSave('creditDebit', creditDebit);
             cloudSave('invoiceCounter', invoiceCounter);
@@ -1561,7 +1600,16 @@
                         <p style="font-size:13px; margin:3px 0;"><strong>Customer:</strong> ${inv.customerName} | <strong>Mobile:</strong> ${inv.customerMobile}</p>
                         ${inv.deviceModel ? `<p style="font-size:13px; margin:3px 0;"><strong>Device:</strong> ${inv.deviceModel}` : ''}${inv.imeiNumber ? ` | <strong>IMEI:</strong> ${inv.imeiNumber}</p>` : (inv.deviceModel ? '</p>' : '')}
                         ${inv.problemDesc ? `<p style="font-size:13px; margin:3px 0;"><strong>Problem:</strong> ${inv.problemDesc}</p>` : ''}
-                        <p style="font-size:13px; margin:3px 0;"><strong>Payment:</strong> ${inv.paymentMode} | <strong>By:</strong> ${inv.handledBy || 'N/A'}</p>
+                        <p style="font-size:13px; margin:3px 0;">
+                            <strong>Payment:</strong>
+                            ${inv.paymentMode === 'Split'
+                                ? `💵 Cash ₹${(inv.cashAmount||0).toFixed(2)} + 💳 UPI ₹${(inv.upiAmount||0).toFixed(2)}`
+                                : inv.paymentMode === 'UPI'
+                                    ? `💳 UPI ₹${inv.total.toFixed(2)}`
+                                    : `💵 Cash ₹${inv.total.toFixed(2)}`}
+                            ${inv.partOrderRef ? ` | <strong>Ref:</strong> ${inv.partOrderRef}` : ''}
+                        </p>
+                        ${inv.advanceAmount > 0 ? `<p style="font-size:13px; margin:3px 0; color:#28a745;"><strong>Advance:</strong> ₹${inv.advanceAmount.toFixed(2)} (${inv.advanceMode}) | <strong>Balance Paid:</strong> ₹${inv.balancePaid.toFixed(2)} (${inv.balanceMode})</p>` : ''}
                     </div>
                     <table style="font-size:12px; width:100%; border-collapse: collapse; margin:15px 0;">
                         <thead>
@@ -1652,7 +1700,14 @@
                             <p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Customer: ${inv.customerName} | Mobile: ${inv.customerMobile}</p>
                             ${inv.deviceModel ? `<p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Device: ${inv.deviceModel}` : ''}${inv.imeiNumber ? ` | IMEI: ${inv.imeiNumber}</p>` : (inv.deviceModel ? '</p>' : '')}
                             ${inv.problemDesc ? `<p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Problem: ${inv.problemDesc}</p>` : ''}
-                            <p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Payment: ${inv.paymentMode} | By: ${inv.handledBy || 'N/A'}</p>
+                            <p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Payment: ${
+                                inv.paymentMode === 'Split'
+                                    ? `Cash ₹${(inv.cashAmount||0).toFixed(2)} + UPI ₹${(inv.upiAmount||0).toFixed(2)}`
+                                    : inv.paymentMode === 'UPI'
+                                        ? `UPI ₹${inv.total.toFixed(2)}`
+                                        : `Cash ₹${inv.total.toFixed(2)}`
+                            }</p>
+                            ${inv.advanceAmount > 0 ? `<p style="font-size:11px; margin:2px 0; font-weight:700; color:#000;">Advance: ₹${inv.advanceAmount.toFixed(2)} (${inv.advanceMode}) | Balance: ₹${inv.balancePaid.toFixed(2)} (${inv.balanceMode})</p>` : ''}
                         </div>
                         <table style="font-size:10px; width:100%; border-collapse: collapse; margin:10px 0;">
                             <thead>
@@ -1703,15 +1758,44 @@
             document.getElementById('invoiceModal').style.display = 'none';
         }
         
+        function autoFillSplitPayment() {
+            const cash = parseFloat(document.getElementById('cashAmount').value) || 0;
+            const upi = parseFloat(document.getElementById('upiAmount').value) || 0;
+            const total = parseFloat(document.getElementById('grandTotal').textContent.replace('₹','').replace(',','')) || 0;
+            const summaryDiv = document.getElementById('paymentSummaryText');
+            const upiLabel = document.getElementById('upiMandatoryLabel');
+
+            if(upiLabel) upiLabel.style.display = upi > 0 ? 'inline' : 'none';
+
+            const paid = cash + upi;
+            const balance = total - paid;
+            let summaryHtml = '';
+            if(cash > 0) summaryHtml += `💵 Cash: ₹${cash.toFixed(2)}  `;
+            if(upi > 0) summaryHtml += `💳 UPI: ₹${upi.toFixed(2)}  `;
+            if(paid > 0) {
+                summaryHtml += `| Total Paid: ₹${paid.toFixed(2)}`;
+                if(Math.abs(balance) > 0.5) summaryHtml += `  <span style="color:${balance>0?'#dc3545':'#28a745'};">Balance: ₹${balance.toFixed(2)}</span>`;
+                else summaryHtml += `  <span style="color:#28a745;">✅ Exact</span>`;
+            }
+            if(summaryDiv) summaryDiv.innerHTML = summaryHtml || '<span style="color:#666;">Enter amounts above</span>';
+        }
+
+        function toggleInvoiceUPI() { /* kept for compatibility */ }
+
         function resetForm() {
             document.getElementById('invoiceForm').reset();
             document.getElementById('labourCharges').value = 0;
             document.getElementById('itemsList').innerHTML = '';
             addItem();
             calcTotal();
+            document.getElementById('cashAmount').value = '0';
+            document.getElementById('upiAmount').value = '0';
+            if(document.getElementById('upiTransactionId')) document.getElementById('upiTransactionId').value = '';
+            if(document.getElementById('paymentSummaryText')) document.getElementById('paymentSummaryText').innerHTML = '<span style="color:#666;">Enter amounts above</span>';
         }
         
         // CREDIT/DEBIT FUNCTIONS
+        // FIX 1: Expense always Cash (debit is always from cash)
         function addDebit() {
             const category = document.getElementById('debitCategory').value;
             const amount = parseFloat(document.getElementById('debitAmount').value);
@@ -1730,7 +1814,8 @@
                 description: description || category,
                 amount,
                 credit: 0,
-                debit: amount
+                debit: amount,
+                paymentMode: 'Cash'  // Expense always cash
             };
             
             creditDebit.push(debitEntry);
@@ -1745,6 +1830,7 @@
             document.getElementById('debitDescription').value = '';
             
             loadCreditDebit();
+            if(currentUserRole === 'admin') calculateCreditDebitStats();
         }
         
         function loadCreditDebit() {
@@ -1754,24 +1840,36 @@
             const today = new Date();
             today.setHours(0,0,0,0);
             
-            let todayCredit = 0;
-            let todayDebit = 0;
-            let runningBalance = 0;
+            let runningCash = 0;
+            let runningOnline = 0;
             
-            // Sort by date
             const sortedEntries = [...creditDebit].sort((a,b) => new Date(a.date) - new Date(b.date));
             
             sortedEntries.forEach(entry => {
-                const entryDate = new Date(entry.date);
-                entryDate.setHours(0,0,0,0);
-                
-                if(entryDate.getTime() === today.getTime()) {
-                    todayCredit += entry.credit;
-                    todayDebit += entry.debit;
+                const mode = entry.paymentMode || 'Cash';
+                const isOnline = mode === 'Online' || mode === 'UPI';
+
+                // FIX 2: NET BALANCE = only cash running balance
+                if(entry.type === 'Credit') {
+                    if(isOnline) runningOnline += entry.credit;
+                    else runningCash += entry.credit;
+                } else {
+                    // Debit always from cash (expense)
+                    runningCash -= entry.debit;
                 }
-                
-                runningBalance += entry.credit - entry.debit;
-                
+
+                const modeTag = isOnline
+                    ? `<span style="background:#17a2b8;color:white;padding:2px 7px;border-radius:10px;font-size:11px;">💳 Online</span>`
+                    : `<span style="background:#28a745;color:white;padding:2px 7px;border-radius:10px;font-size:11px;">💵 Cash</span>`;
+
+                // View details for credit entries (UPI details, invoice ref)
+                const viewBtn = (entry.utr || entry.upiId || entry.type === 'Credit')
+                    ? `<button class="btn btn-info" style="padding:3px 7px;font-size:11px;" onclick="viewCreditDebitDetail(${entry.id})">👁</button>`
+                    : '';
+                const deleteBtn = entry.type === 'Debit'
+                    ? `<button class="btn btn-danger" style="padding:3px 7px;font-size:11px;" onclick="deleteCreditDebit(${entry.id})">🗑</button>`
+                    : '';
+
                 const row = tbody.insertRow();
                 row.className = entry.type === 'Credit' ? 'credit-row' : 'debit-row';
                 row.innerHTML = `
@@ -1779,18 +1877,36 @@
                     <td><strong>${entry.type}</strong></td>
                     <td>${entry.category}</td>
                     <td>${entry.description}</td>
-                    <td style="color: #28a745; font-weight: 600;">${entry.credit > 0 ? '₹' + entry.credit.toFixed(2) : '-'}</td>
-                    <td style="color: #dc3545; font-weight: 600;">${entry.debit > 0 ? '₹' + entry.debit.toFixed(2) : '-'}</td>
-                    <td><strong>₹${runningBalance.toFixed(2)}</strong></td>
-                    <td>
-                        ${entry.type === 'Debit' ? `<button class="btn btn-danger" style="padding:5px 10px;" onclick="deleteCreditDebit(${entry.id})">Delete</button>` : '-'}
-                    </td>
+                    <td style="color:#28a745;font-weight:600;">${entry.credit > 0 ? '₹'+entry.credit.toFixed(2) : '-'}</td>
+                    <td style="color:#dc3545;font-weight:600;">${entry.debit > 0 ? '₹'+entry.debit.toFixed(2) : '-'}</td>
+                    <td>${modeTag}</td>
+                    <td><strong style="color:${runningCash>=0?'#28a745':'#dc3545'};">₹${runningCash.toFixed(2)}</strong><br><small style="color:#17a2b8;">+₹${runningOnline.toFixed(2)} online</small></td>
+                    <td style="white-space:nowrap;">${viewBtn} ${deleteBtn}</td>
                 `;
             });
-            
-            document.getElementById('todayCredit').textContent = '₹' + todayCredit.toFixed(2);
-            document.getElementById('todayDebit').textContent = '₹' + todayDebit.toFixed(2);
-            document.getElementById('todayProfit').textContent = '₹' + (todayCredit - todayDebit).toFixed(2);
+
+            // Update hidden stat elements (kept for compatibility)
+            if(document.getElementById('todayCredit')) document.getElementById('todayCredit').textContent = '₹0';
+            if(document.getElementById('todayDebit')) document.getElementById('todayDebit').textContent = '₹0';
+            if(document.getElementById('todayProfit')) document.getElementById('todayProfit').textContent = '₹0';
+        }
+
+        function viewCreditDebitDetail(id) {
+            const entry = creditDebit.find(e => e.id === id);
+            if(!entry) return;
+            const mode = entry.paymentMode || 'Cash';
+            const utr = entry.utr || entry.upiId || '';
+            alert(
+                `📋 Entry Detail\n` +
+                `━━━━━━━━━━━━━━━━\n` +
+                `Date: ${new Date(entry.date).toLocaleString('en-IN')}\n` +
+                `Type: ${entry.type}\n` +
+                `Category: ${entry.category}\n` +
+                `Description: ${entry.description}\n` +
+                `Amount: ₹${(entry.credit || entry.debit || 0).toFixed(2)}\n` +
+                `Payment Mode: ${mode}\n` +
+                `${utr ? 'UTR/UPI ID: ' + utr : ''}`
+            );
         }
         
         function deleteCreditDebit(id) {
@@ -1826,33 +1942,27 @@
                                entryDate.getDate() === today.getDate();
                 const isCurrentMonth = entryDate.getMonth() === currentMonth && 
                                       entryDate.getFullYear() === currentYear;
-                
+                const mode = entry.paymentMode || 'Cash';
+                const isOnline = mode === 'Online' || mode === 'UPI';
+
                 if(isToday && entry.type === 'Credit' && entry.credit > 0) {
-                    // FIX 2: paymentMode check — Part Order Advance bhi include
-                    const mode = entry.paymentMode || 'Cash';
-                    if(mode === 'Online') {
-                        todayOnline += entry.credit;
-                    } else {
-                        todayCash += entry.credit;
-                    }
+                    if(isOnline) todayOnline += entry.credit;
+                    else todayCash += entry.credit;
                 }
                 
                 if(isCurrentMonth) {
                     if(entry.type === 'Credit' && entry.credit > 0) {
                         monthlyTotalCredit += entry.credit;
-                        const mode = entry.paymentMode || 'Cash';
-                        if(mode === 'Online') {
-                            monthlyOnlineCredit += entry.credit;
-                        } else {
-                            monthlyCashCredit += entry.credit;
-                        }
+                        if(isOnline) monthlyOnlineCredit += entry.credit;
+                        else monthlyCashCredit += entry.credit;
                     } else if(entry.type === 'Debit') {
                         monthlyTotalDebit += entry.debit;
                     }
                 }
             });
             
-            const netBalance = monthlyTotalCredit - monthlyTotalDebit;
+            // FIX 2: NET CASH BALANCE = cash credits - all debits (expenses always from cash)
+            const netCashBalance = monthlyCashCredit - monthlyTotalDebit;
             
             if(document.getElementById('cdTodayCash')) {
                 document.getElementById('cdTodayCash').textContent = todayCash.toFixed(2);
@@ -1864,8 +1974,9 @@
                 document.getElementById('cdMonthlyOnlineCredit').textContent = monthlyOnlineCredit.toFixed(2);
                 document.getElementById('cdMonthlyTotalCredit').textContent = monthlyTotalCredit.toFixed(2);
                 document.getElementById('cdMonthlyTotalDebit').textContent = monthlyTotalDebit.toFixed(2);
-                document.getElementById('cdNetBalance').textContent = netBalance.toFixed(2);
-                document.getElementById('cdNetBalance').style.color = netBalance >= 0 ? '#28a745' : '#dc3545';
+                document.getElementById('cdNetBalance').textContent = netCashBalance.toFixed(2);
+                document.getElementById('cdNetBalance').style.color = netCashBalance >= 0 ? '#28a745' : '#dc3545';
+                if(document.getElementById('cdNetOnline')) document.getElementById('cdNetOnline').textContent = monthlyOnlineCredit.toFixed(2);
                 
                 const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
                 document.getElementById('cdMonthName').textContent = monthNames[currentMonth] + ' ' + currentYear;
@@ -1923,17 +2034,23 @@
         }
         
         function exportCreditDebitToExcel() {
-            let csv = 'Date,Type,Category,Description,Credit,Debit,Balance\n';
-            let runningBalance = 0;
+            let csv = 'Date,Type,Category,Description,Credit,Debit,Payment Mode,UTR/UPI ID,Cash Balance\n';
+            let runningCash = 0;
             
             const sortedEntries = [...creditDebit].sort((a,b) => new Date(a.date) - new Date(b.date));
             
             sortedEntries.forEach(entry => {
-                runningBalance += entry.credit - entry.debit;
-                csv += `${new Date(entry.date).toLocaleDateString('en-IN')},${entry.type},${entry.category},"${entry.description}",`;
+                const mode = entry.paymentMode || 'Cash';
+                const isOnline = mode === 'Online' || mode === 'UPI';
+                if(entry.type === 'Credit') {
+                    if(!isOnline) runningCash += entry.credit;
+                } else {
+                    runningCash -= entry.debit;
+                }
+                csv += `${new Date(entry.date).toLocaleDateString('en-IN')},${entry.type},"${entry.category}","${entry.description}",`;
                 csv += `${entry.credit > 0 ? '₹' + entry.credit.toFixed(2) : '-'},`;
                 csv += `${entry.debit > 0 ? '₹' + entry.debit.toFixed(2) : '-'},`;
-                csv += `₹${runningBalance.toFixed(2)}\n`;
+                csv += `${mode},"${entry.utr || entry.upiId || '-'}",₹${runningCash.toFixed(2)}\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -2152,10 +2269,14 @@
             }
 
             [...invoices].reverse().forEach(inv => {
+                const payDisplay = inv.paymentMode === 'Split'
+                    ? `Split<br><small>💵₹${(inv.cashAmount||0).toFixed(0)} 💳₹${(inv.upiAmount||0).toFixed(0)}</small>`
+                    : inv.paymentMode === 'UPI' ? `💳 UPI` : `💵 Cash`;
                 const row = tbody.insertRow();
                 row.innerHTML = `<td>#${inv.id}${inv.partOrderRef ? '<br><small style="color:#667eea;">'+inv.partOrderRef+'</small>' : ''}</td>
                 <td>${new Date(inv.date).toLocaleDateString('en-IN')}</td>
-                <td>${inv.customerName}</td><td>₹${inv.total.toFixed(2)}</td><td>${inv.paymentMode}</td>
+                <td>${inv.customerName}</td><td>₹${inv.total.toFixed(2)}</td>
+                <td>${payDisplay}</td>
                 <td>
                     <button class="btn btn-info" style="padding:5px 10px;" onclick='viewInvoice(${inv.id})'>View</button>
                     <button class="btn btn-danger" style="padding:5px 10px;" onclick='deleteInvoice(${inv.id})'>Delete</button>
@@ -2189,9 +2310,11 @@
         }
         
         function exportSalesToExcel() {
-            let csv = 'Invoice#,Date,Customer,Mobile,Device,Amount,Payment,Employee\n';
+            let csv = 'Invoice#,Date,Customer,Mobile,Device,Total,Cash Amount,UPI Amount,UPI UTR/ID,Payment Mode\n';
             invoices.forEach(inv => {
-                csv += `${inv.id},${new Date(inv.date).toLocaleDateString('en-IN')},${inv.customerName},${inv.customerMobile},${inv.deviceModel || ''},₹${inv.total.toFixed(2)},${inv.paymentMode},${inv.handledBy || ''}\n`;
+                const cash = inv.cashAmount !== undefined ? inv.cashAmount : (inv.paymentMode === 'Cash' ? inv.total : 0);
+                const upi = inv.upiAmount !== undefined ? inv.upiAmount : (inv.paymentMode === 'UPI' ? inv.total : 0);
+                csv += `${inv.id},${new Date(inv.date).toLocaleDateString('en-IN')},"${inv.customerName}",${inv.customerMobile},"${inv.deviceModel||''}",₹${inv.total.toFixed(2)},₹${cash.toFixed(2)},₹${upi.toFixed(2)},"${inv.upiId||''}",${inv.paymentMode}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
