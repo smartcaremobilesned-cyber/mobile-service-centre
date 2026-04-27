@@ -2034,7 +2034,8 @@
         }
         
         function exportCreditDebitToExcel() {
-            let csv = 'Date,Type,Category,Description,Credit,Debit,Payment Mode,UTR/UPI ID,Cash Balance\n';
+            const BOM = '\uFEFF';
+            let csv = BOM + 'Date,Type,Category,Description,Credit,Debit,Payment Mode,UTR/UPI ID,Cash Balance\n';
             let runningCash = 0;
             
             const sortedEntries = [...creditDebit].sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -2048,12 +2049,12 @@
                     runningCash -= entry.debit;
                 }
                 csv += `${new Date(entry.date).toLocaleDateString('en-IN')},${entry.type},"${entry.category}","${entry.description}",`;
-                csv += `${entry.credit > 0 ? '₹' + entry.credit.toFixed(2) : '-'},`;
-                csv += `${entry.debit > 0 ? '₹' + entry.debit.toFixed(2) : '-'},`;
-                csv += `${mode},"${entry.utr || entry.upiId || '-'}",₹${runningCash.toFixed(2)}\n`;
+                csv += `${entry.credit > 0 ? entry.credit.toFixed(2) : '-'},`;
+                csv += `${entry.debit > 0 ? entry.debit.toFixed(2) : '-'},`;
+                csv += `${mode},"${entry.utr || entry.upiId || '-'}",${runningCash.toFixed(2)}\n`;
             });
             
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -2202,29 +2203,27 @@
         }
         
         function exportInventoryToExcel() {
-            let csv = 'Item Name,Quantity,Price,Min Stock,Status\n';
+            const BOM = '\uFEFF';
+            let csv = BOM + 'Item Name,Quantity,Price,Min Stock,Status\n';
             
             inventory.forEach(item => {
                 let status = 'In Stock';
                 if(item.quantity === 0) status = 'Out of Stock';
                 else if(item.quantity <= item.minStock) status = 'Low Stock';
-                
-                csv += `"${item.name}",${item.quantity},₹${item.price.toFixed(2)},${item.minStock},${status}\n`;
+                csv += `"${item.name}",${item.quantity},${item.price.toFixed(2)},${item.minStock},${status}\n`;
             });
             
-            // Add summary
             const totalQty = inventory.reduce((sum, item) => sum + item.quantity, 0);
             const lowStock = inventory.filter(item => item.quantity > 0 && item.quantity <= item.minStock).length;
             const outOfStock = inventory.filter(item => item.quantity === 0).length;
             
-            csv += '\n';
-            csv += 'SUMMARY\n';
+            csv += '\nSUMMARY\n';
             csv += `Total Items,${inventory.length}\n`;
             csv += `Total Quantity,${totalQty}\n`;
             csv += `Low Stock Items,${lowStock}\n`;
             csv += `Out of Stock Items,${outOfStock}\n`;
             
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -2310,13 +2309,14 @@
         }
         
         function exportSalesToExcel() {
-            let csv = 'Invoice#,Date,Customer,Mobile,Device,Total,Cash Amount,UPI Amount,UPI UTR/ID,Payment Mode\n';
+            const BOM = '\uFEFF';
+            let csv = BOM + 'Invoice#,Date,Customer,Mobile,Device,Total,Cash Amount,UPI Amount,UPI UTR/ID,Payment Mode\n';
             invoices.forEach(inv => {
                 const cash = inv.cashAmount !== undefined ? inv.cashAmount : (inv.paymentMode === 'Cash' ? inv.total : 0);
                 const upi = inv.upiAmount !== undefined ? inv.upiAmount : (inv.paymentMode === 'UPI' ? inv.total : 0);
-                csv += `${inv.id},${new Date(inv.date).toLocaleDateString('en-IN')},"${inv.customerName}",${inv.customerMobile},"${inv.deviceModel||''}",₹${inv.total.toFixed(2)},₹${cash.toFixed(2)},₹${upi.toFixed(2)},"${inv.upiId||''}",${inv.paymentMode}\n`;
+                csv += `${inv.id},${new Date(inv.date).toLocaleDateString('en-IN')},"${inv.customerName}",${inv.customerMobile},"${inv.deviceModel||''}",${inv.total.toFixed(2)},${cash.toFixed(2)},${upi.toFixed(2)},"${inv.upiId||''}",${inv.paymentMode}\n`;
             });
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
